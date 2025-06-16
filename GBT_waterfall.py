@@ -113,7 +113,7 @@ def check_dir(outpath):
 
 def get_metadata(tpsb, i=0):
     """
-    description here
+    retrieves the pointing and timestamp metadata for a given scan or set of scans
 
     Arguments:
     ----------------
