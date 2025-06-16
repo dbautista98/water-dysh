@@ -255,6 +255,7 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", c
     """
     summary_df = sdf.summary()
     scans = summary_df["SCAN"].values
+    scans.sort()
 
     plnums = np.arange(summary_df["# POL"].values[0])
     ifnums = np.arange(summary_df["# IF"].values[0])
@@ -276,6 +277,7 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none"
     """
     summary_df = sdf.summary()
     scans = summary_df["SCAN"].values
+    scans.sort()
 
     # for each scan, pull the number of feeds, polarizations, and IF windows
     # there is no reason to assume that they will be the same for all scans in a session
