@@ -11,6 +11,8 @@ except:
     band_allocation_ghz_dict = {"none":{}}
 import calibration
 import matplotlib.pyplot as plt
+from astropy.coordinates import EarthLocation,SkyCoord
+from astropy import units as u
 import astropy.units as u
 from datetime import datetime
 import numpy as np
@@ -136,11 +138,27 @@ def get_metadata(tpsb, i=0):
     el_values = []
 
     all_medadata = tpsb[i].meta
+
+    # checking the coordinate system 
+    coord1 = all_medadata[0]['CTYPE2']
+    coord2 = all_medadata[0]['CTYPE3']
+
+    # ensure that the code can handle the coordinate system
+    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], "Congratulations you found a new coordinate system that Dan didn't account for! Please tell him :)"
+
     for subint_num in range(len(all_medadata)):
         this_subint_metadata = all_medadata[subint_num]
         az_values.append(this_subint_metadata["CRVAL2"])
         el_values.append(this_subint_metadata["CRVAL3"])
         timestamps.append(this_subint_metadata["DATE-OBS"])
+
+    # convert RA/DEC to AZ/EL 
+    if coord1 == "RA" and coord2 == "DEC":
+        # print("transforming coordinates to AZ EL")
+        GBT = EarthLocation.of_site('Green Bank Telescope')
+        coords = SkyCoord(ra=np.array(az_values)*u.deg, dec=np.array(el_values)*u.deg, obstime=timestamps, frame="icrs", location=GBT)
+        az_values = list(coords.altaz.az.deg)
+        el_values = list(coords.altaz.alt.deg)
 
     return az_values, el_values, timestamps
 
