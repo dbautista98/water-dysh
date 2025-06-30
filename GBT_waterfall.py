@@ -283,7 +283,6 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", c
             for ifnum in ifnums:
                 tpsb = sdf.gettp(scan=scans,ifnum=ifnum,plnum=plnum,fdnum=fdnum)
                 for i in range(len(scans)):
-                    tpsb = sdf.gettp(scan=scans,ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
                     plot_waterfall(sdf, tpsb, i=i, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, band_allocation=band_allocation, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type)
 
 def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", cal_type="median_subtract", scale="linear", outdir="./", plot_type="png"):
