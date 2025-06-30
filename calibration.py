@@ -73,3 +73,49 @@ def median_subtract(sdf, tpsb, i=0):
     flux = np.mean(ts_no_spur - median_spectrum, axis=0)
     ts_no_spur_median_subtracted = ts_no_spur - median_spectrum
     return flux, freq, ts_no_spur_median_subtracted, average_spect
+
+def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, fdnum=0):
+    """
+    A helper function to return only the spectrum and frequency axis from the given
+    scan metadata
+    """
+    tpsb = sdf.gettp(scan=scan,ifnum=ifnum,plnum=plnum,fdnum=fdnum,cal=calstate)
+    timeseries = tpsb[i]._calibrated
+    average_spect = tpsb[i].timeaverage()
+    freq = average_spect.spectral_axis.to(u.GHz).value
+    ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
+    tcal = tpsb[0].meta[0]["TCAL"] # assuming a scalar Tcal value for whole spectrum 
+    tsys = np.array(list(tpsb[0].meta[i]["TSYS"] for i in range(len(tpsb[0].meta))))
+    print(f"TCAL: {tcal}")
+    return freq, ts_no_spur, average_spect, tcal, tsys
+
+def replace_bad_integrations(ts_grid):
+    """
+    A function to identify integrations that have a strong presence of 
+    broadband RFI (signals on the order of 5-250 MHz) and replace them 
+    with data from neighboring integrations that do not have strong RFI
+    """
+    return ts_grid
+
+def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0):
+    """
+    This is the standard calibration method, following the process outlined  in 
+    https://www.gb.nrao.edu/GBT/DA/gbtidl/gbtidl_calibration.pdf
+    """
+    # read in the data, keeping both a calon and caloff set
+    freq,  cal_ts, cal_average_spect, tcal, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    freq, nocal_ts, nocal_average_spect, tcal, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
+    
+    # replace the bad integrations from the off data
+    cleaned_nocal_ts = replace_bad_integrations(nocal_ts)
+
+    # tsys
+    print(f"tsys shape: {tsys.shape}")
+    print(f"ts shape: {cal_ts.shape}")
+
+    Ta = tsys[:, np.newaxis] * ((cal_ts - cleaned_nocal_ts) / cleaned_nocal_ts)
+    flux = np.ma.mean(Ta, axis=0)
+
+    return flux, freq, Ta, cal_average_spect
+    
