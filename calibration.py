@@ -97,7 +97,8 @@ def replace_bad_integrations(ts_grid):
     """
     return ts_grid
 
-def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0):
+# add docstring
+def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0, replace_RFI=False):
     """
     This is the standard calibration method, following the process outlined  in 
     https://www.gb.nrao.edu/GBT/DA/gbtidl/gbtidl_calibration.pdf
@@ -108,14 +109,16 @@ def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0):
     assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
     
     # replace the bad integrations from the off data
-    cleaned_nocal_ts = replace_bad_integrations(nocal_ts)
+    if replace_RFI:
+        nocal_ts = replace_bad_integrations(nocal_ts)
+    else:
+        nocal_ts = nocal_ts
 
     # tsys
     print(f"tsys shape: {tsys.shape}")
     print(f"ts shape: {cal_ts.shape}")
 
-    Ta = tsys[:, np.newaxis] * ((cal_ts - cleaned_nocal_ts) / cleaned_nocal_ts)
+    Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
     flux = np.ma.mean(Ta, axis=0)
 
     return flux, freq, Ta, cal_average_spect
-    
