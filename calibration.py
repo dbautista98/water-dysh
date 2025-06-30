@@ -2,12 +2,14 @@ import numpy as np
 import astropy.units as u
 
 
-def raw_data(tpsb, i=0):
+def raw_data(sdf, tpsb, i=0):
     """
     returns the raw counts data for a given scan (indexed by `i`)
 
     Arguments:
     ----------------
+    sdf : dysh.fits.gbtfitsload.GBTOffline
+        a Dysh object holding the loaded data of a GBT observation
     tpsb : dysh.spectra.scan.ScanBlock
         total power scan block that contains all the relevant data for an observation
     i : int
@@ -32,7 +34,7 @@ def raw_data(tpsb, i=0):
     ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
     return flux, freq, ts_no_spur, average_spect
 
-def median_subtract(tpsb, i=0):
+def median_subtract(sdf, tpsb, i=0):
     """
     returns the median subtracted data for a given scan (indexed by `i`). 
     This data has units of "counts". The median spectrum is calculated for 
@@ -42,6 +44,8 @@ def median_subtract(tpsb, i=0):
 
     Arguments:
     ----------------
+    sdf : dysh.fits.gbtfitsload.GBTOffline
+        a Dysh object holding the loaded data of a GBT observation
     tpsb : dysh.spectra.scan.ScanBlock
         total power scan block that contains all the relevant data for an observation
     i : int

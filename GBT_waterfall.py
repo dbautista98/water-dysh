@@ -144,7 +144,7 @@ def get_metadata(tpsb, i=0):
     coord2 = all_medadata[0]['CTYPE3']
 
     # ensure that the code can handle the coordinate system
-    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], "Congratulations you found a new coordinate system that Dan didn't account for! Please tell him :)"
+    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], "Congratulations you found a coordinate system that Dan didn't account for! Please tell him :)"
 
     for subint_num in range(len(all_medadata)):
         this_subint_metadata = all_medadata[subint_num]
@@ -154,7 +154,6 @@ def get_metadata(tpsb, i=0):
 
     # convert RA/DEC to AZ/EL 
     if coord1 == "RA" and coord2 == "DEC":
-        # print("transforming coordinates to AZ EL")
         GBT = EarthLocation.of_site('Green Bank Telescope')
         coords = SkyCoord(ra=np.array(az_values)*u.deg, dec=np.array(el_values)*u.deg, obstime=timestamps, frame="icrs", location=GBT)
         az_values = list(coords.altaz.az.deg)
@@ -315,7 +314,7 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     This function is called from within other functions and is not meant to be called on its own. 
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    flux, freq, ts_no_spur, average_spect = calbration_type[cal_type](tpsb, i)
+    flux, freq, ts_no_spur, average_spect = calbration_type[cal_type](sdf, tpsb, i)
 
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
 
