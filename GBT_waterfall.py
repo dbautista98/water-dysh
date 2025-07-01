@@ -161,7 +161,7 @@ def get_metadata(tpsb, i=0):
 
     return az_values, el_values, timestamps
 
-def frequency_cut(flux, freq, ts_no_spur, average_spect, fmin_GHz=0, fmax_GHz=1e99):
+def frequency_cut(flux, freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     """
     Option to apply a frequency mask to the data. This function is used as an intermediate
     helper function when plotting the data.
@@ -192,16 +192,12 @@ def frequency_cut(flux, freq, ts_no_spur, average_spect, fmin_GHz=0, fmax_GHz=1e
         The time series data of the scan block. It has shape (n_int, nchan). 
         nchan is now the number of frequency channels that fall within the 
         specified boundaries. 
-    average_spect : dysh.spectra.spectrum.Spectrum
-        The frequency masked spectrum object that contains all the metadata 
-        relevant to the scan. This is mainly used for extracting metadata for plotting
     """
     freq_mask = np.where((freq >= fmin_GHz) & (freq <= fmax_GHz))
-    average_spect = average_spect.data[freq_mask]
     ts_no_spur = ts_no_spur[::, freq_mask][::, 0, ::]
     freq = freq[freq_mask]
     flux = flux[freq_mask]
-    return flux, freq, ts_no_spur, average_spect
+    return flux, freq, ts_no_spur
 
 def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", cal_type="median_subtract", scale="linear", outdir="./", plot_type="png"):
     """
@@ -331,7 +327,7 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
 
         print(f"plotting: scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
         
-        flux, freq, ts_no_spur, average_spect = frequency_cut(flux, freq, ts_no_spur, average_spect)
+        flux, freq, ts_no_spur = frequency_cut(flux, freq, ts_no_spur)
         extent = [freq[0], freq[-1], 0, len(ts_no_spur)]
 
         max_val = np.nanmax(ts_no_spur)
