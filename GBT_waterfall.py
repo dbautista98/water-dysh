@@ -174,9 +174,6 @@ def frequency_cut(flux, freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
         the frequency axis of the given data
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
-    average_spect : dysh.spectra.spectrum.Spectrum
-        The spectrum object that contains all the metadata relevant to the scan. 
-        This is mainly used for extracting metadata for plotting
     fmin_GHz : float
         minimum frequency that will be plotted. The default is 0 GHz. 
     fmax_GHz : float
@@ -309,7 +306,7 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     This function is called from within other functions and is not meant to be called on its own. 
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    flux, freq, ts_no_spur, average_spect = calbration_type[cal_type](sdf, tpsb, i)
+    flux, freq, ts_no_spur = calbration_type[cal_type](sdf, tpsb, i)
 
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
 
@@ -317,7 +314,7 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
 
         filename = sdf.filename
         scan = tpsb[i].scan
-        pl = polnum_to_pol[average_spect.meta["CRVAL4"]]
+        pl = polnum_to_pol[tpsb[i].meta[0]["CRVAL4"]]
         ifn = tpsb[i].ifnum
         fd = tpsb[i].fdnum
         df_kHz = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)

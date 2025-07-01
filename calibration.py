@@ -23,16 +23,13 @@ def raw_data(sdf, tpsb, i=0):
         the frequency axis of the given data
     ts_no_spur : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan)
-    average_spect : dysh.spectra.spectrum.Spectrum
-        The spectrum object that contains all the metadata relevant to the scan. 
-        This is mainly used for extracting metadata for plotting
     """
     timeseries = tpsb[i]._calibrated # variables that start with an underscore will be replaced in fututre versions of dysh
     average_spect = tpsb[i].timeaverage()
     flux = np.ma.masked_where(average_spect.mask, average_spect.data)
     freq = average_spect.spectral_axis.to(u.GHz).value
     ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
-    return flux, freq, ts_no_spur, average_spect
+    return flux, freq, ts_no_spur
 
 def median_subtract(sdf, tpsb, i=0):
     """
@@ -61,9 +58,6 @@ def median_subtract(sdf, tpsb, i=0):
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
         This data grid has had the median spectrum subtracted from each integration
-    average_spect : dysh.spectra.spectrum.Spectrum
-        The spectrum object that contains all the metadata relevant to the scan. 
-        This is mainly used for extracting metadata for plotting
     """
     timeseries = tpsb[i]._calibrated # variables that start with an underscore will be replaced in fututre versions of dysh
     average_spect = tpsb[i].timeaverage()
@@ -72,7 +66,7 @@ def median_subtract(sdf, tpsb, i=0):
     median_spectrum = np.ma.median(ts_no_spur, axis=0)
     flux = np.mean(ts_no_spur - median_spectrum, axis=0)
     ts_no_spur_median_subtracted = ts_no_spur - median_spectrum
-    return flux, freq, ts_no_spur_median_subtracted, average_spect
+    return flux, freq, ts_no_spur_median_subtracted
 
 def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, fdnum=0):
     """
@@ -87,7 +81,7 @@ def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, f
     tcal = tpsb[0].meta[0]["TCAL"] # assuming a scalar Tcal value for whole spectrum 
     tsys = np.array(list(tpsb[0].meta[i]["TSYS"] for i in range(len(tpsb[0].meta))))
     print(f"TCAL: {tcal}")
-    return freq, ts_no_spur, average_spect, tcal, tsys
+    return freq, ts_no_spur, tcal, tsys
 
 def replace_bad_integrations(ts_grid):
     """
@@ -104,10 +98,9 @@ def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0, replace_
     https://www.gb.nrao.edu/GBT/DA/gbtidl/gbtidl_calibration.pdf
     """
     # read in the data, keeping both a calon and caloff set
-    freq,  cal_ts, cal_average_spect, tcal, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
-    freq, nocal_ts, nocal_average_spect, tcal, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    freq,  cal_ts, tcal, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    freq, nocal_ts, tcal, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
     assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
-    
     # replace the bad integrations from the off data
     if replace_RFI:
         nocal_ts = replace_bad_integrations(nocal_ts)
@@ -121,4 +114,4 @@ def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0, replace_
     Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
     flux = np.ma.mean(Ta, axis=0)
 
-    return flux, freq, Ta, cal_average_spect
+    return flux, freq, Ta
