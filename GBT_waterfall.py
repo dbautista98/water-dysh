@@ -205,6 +205,7 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     Arguments:
     ----------------
     sdf : dysh.fits.gbtfitsload.GBTOffline OR dysh.fits.gbtfitsload.GBTFITSLoad
+        a Dysh object holding the loaded data of a GBT observation
     session_ID : str
         session ID for an observation. This is used to identify the observation
         as well as generate the directory structure for saving the plots 
