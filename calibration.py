@@ -78,10 +78,8 @@ def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, f
     average_spect = tpsb[i].timeaverage()
     freq = average_spect.spectral_axis.to(u.GHz).value
     ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
-    tcal = tpsb[0].meta[0]["TCAL"] # assuming a scalar Tcal value for whole spectrum 
     tsys = np.array(list(tpsb[0].meta[i]["TSYS"] for i in range(len(tpsb[0].meta))))
-    print(f"TCAL: {tcal}")
-    return freq, ts_no_spur, tcal, tsys
+    return freq, ts_no_spur, tsys
 
 def replace_bad_integrations(ts_grid):
     """
@@ -98,8 +96,8 @@ def calibrate_scan(sdf, tpsb, i=0, scan=[1], fdnum=0, plnum=0, ifnum=0, replace_
     https://www.gb.nrao.edu/GBT/DA/gbtidl/gbtidl_calibration.pdf
     """
     # read in the data, keeping both a calon and caloff set
-    freq,  cal_ts, tcal, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
-    freq, nocal_ts, tcal, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    freq,  cal_ts, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    freq, nocal_ts, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
     assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
     # replace the bad integrations from the off data
     if replace_RFI:
