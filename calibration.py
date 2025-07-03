@@ -303,9 +303,9 @@ def find_RFI_integrations(time_series, n_SD=1):
         A list of indices corresponding to the flagged subintegrations
     """
     # Identify which integrations are affected by strong RFI 
-    median_power = np.median(time_series)
-    sd = np.sqrt(np.sum( (time_series - median_power)**2 ) / len(time_series))
-    bad_indices = np.where((median_power - n_SD*sd >= time_series) | (time_series >= median_power + n_SD*sd))
+    median_power = np.ma.median(time_series)
+    sd = np.ma.sqrt(np.sum( (time_series - median_power)**2 ) / len(time_series))
+    bad_indices = np.ma.where((median_power - n_SD*sd >= time_series) | (time_series >= median_power + n_SD*sd))
     return bad_indices[0]
 
 def select_replacement_spectrum(timeseries_grid, good_lower, good_upper):
