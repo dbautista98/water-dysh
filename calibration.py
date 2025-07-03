@@ -440,10 +440,15 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     freq, nocal_ts, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
     assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
     
+    # find the median noise diode spectrum 
+    # the noise diode spectrum is very stable over the course of a scan, and the biggest variation in power
+    #   comes from strong RFI that changes rapidly in power between subsequent CALOF, CALON integrations
+    # taking the median spectrum will protect against variations in power from RFI
+    noise_diode_spectrum = np.ma.median(cal_ts - nocal_ts, axis=0)
+    cal_ts = cal_ts - noise_diode_spectrum
+
     # replace the bad integrations from the off data
     if replace_RFI:
-        # this will need to be changed to correctly calibrate the data
-        cal_ts = np.copy(nocal_ts)
         nocal_ts = replace_bad_integrations(freq, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels)
 
     Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
