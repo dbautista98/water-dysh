@@ -368,7 +368,7 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
     for chan in channels:
         low_f, high_f = band_allocation_ghz_dict[band_allocation][chan]
         time_slice = chunk_timeseries(low_f, high_f, freq, timeseries_grid)
-        bad_indices = find_RFI_integrations(time_slice, N=sd_threshold)
+        bad_indices = find_RFI_integrations(time_slice, n_SD=sd_threshold)
         all_flagged.append(bad_indices)
     all_flagged = np.unique(np.hstack(all_flagged))
     return all_flagged
