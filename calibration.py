@@ -6,9 +6,9 @@ except:
     band_allocation_ghz_dict = {"none":{}}
 
 
-def raw_data(sdf, tpsb, i=0):
+def raw_data(sdf, tpsb, i=0, **kwargs):
     """
-    returns the raw counts data for a given scan (indexed by `i`)
+    returns the raw "counts" data for a given scan (indexed by `i`)
 
     Arguments:
     ----------------
@@ -27,15 +27,18 @@ def raw_data(sdf, tpsb, i=0):
         the frequency axis of the given data
     ts_no_spur : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan)
+        and has units of counts
+    unit : str
+        The units of the returned spectra
     """
     timeseries = tpsb[i]._calibrated # variables that start with an underscore will be replaced in fututre versions of dysh
     average_spect = tpsb[i].timeaverage()
     flux = np.ma.masked_where(average_spect.mask, average_spect.data)
     freq = average_spect.spectral_axis.to(u.GHz).value
     ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
-    return flux, freq, ts_no_spur
+    return flux, freq, ts_no_spur, "counts"
 
-def median_subtract(sdf, tpsb, i=0):
+def median_subtract(sdf, tpsb, i=0, **kwargs):
     """
     returns the median subtracted data for a given scan (indexed by `i`). 
     This data has units of "counts". The median spectrum is calculated for 
@@ -62,6 +65,9 @@ def median_subtract(sdf, tpsb, i=0):
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
         This data grid has had the median spectrum subtracted from each integration
+        and has units of counts
+    unit : str
+        The units of the returned spectra
     """
     timeseries = tpsb[i]._calibrated # variables that start with an underscore will be replaced in fututre versions of dysh
     average_spect = tpsb[i].timeaverage()
@@ -70,7 +76,7 @@ def median_subtract(sdf, tpsb, i=0):
     median_spectrum = np.ma.median(ts_no_spur, axis=0)
     flux = np.mean(ts_no_spur - median_spectrum, axis=0)
     ts_no_spur_median_subtracted = ts_no_spur - median_spectrum
-    return flux, freq, ts_no_spur_median_subtracted
+    return flux, freq, ts_no_spur_median_subtracted, "counts"
 
 def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, fdnum=0):
     """
@@ -373,7 +379,7 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
     all_flagged = np.unique(np.hstack(all_flagged))
     return all_flagged
 
-def calibrate_Ta(sdf, tpsb, i=0, replace_RFI=False, n_SD=1, band_allocation="none", channels=[]):
+def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     """
     Take a scan block and use noise diode and system temperature data to calibrate 
     to antenna temperature (Ta). This is a modification of standard calibration method, 
@@ -415,7 +421,14 @@ def calibrate_Ta(sdf, tpsb, i=0, replace_RFI=False, n_SD=1, band_allocation="non
     Ta : numpy.ma.MaskedArray
         The calibrated time series data of the scan block. It has shape (n_int, nchan)
         and has units of antenna temperature [Kelvin]
+    unit : str
+        The units of the returned spectra
     """
+    replace_RFI = kwargs.get("replace_RFI", False)
+    n_SD = kwargs.get("n_SD", 1)
+    band_allocation = kwargs.get("band_allocation", "none")
+    channels = kwargs.get("channels", [])
+    
     # pull scan metadata from tpsb object
     scan = tpsb[i].meta[0]["SCAN"]
     ifnum = tpsb[i].meta[0]["IFNUM"]
@@ -436,4 +449,4 @@ def calibrate_Ta(sdf, tpsb, i=0, replace_RFI=False, n_SD=1, band_allocation="non
     Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
     flux = np.ma.mean(Ta, axis=0)
 
-    return flux, freq, Ta
+    return flux, freq, Ta, "K"

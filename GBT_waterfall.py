@@ -43,11 +43,12 @@ polnum_to_pol = {
                 -7: 'XY',
                 -8: 'YX'}
 
-calbration_type = {"raw_data":calibration.raw_data,
-                   "median_subtract":calibration.median_subtract
+calibration_type = {"raw_data":calibration.raw_data,
+                   "median_subtract":calibration.median_subtract,
+                   "calibrate_Ta":calibration.calibrate_Ta,
                    }
 
-calibration_options = list(calbration_type.keys())
+calibration_options = list(calibration_type.keys())
 
 def which_calibration():
     """
@@ -196,7 +197,7 @@ def frequency_cut(flux, freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     flux = flux[freq_mask]
     return flux, freq, ts_no_spur
 
-def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", cal_type="median_subtract", scale="linear", outdir="./", plot_type="png"):
+def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1):
     """
     Generates a waterfall plot of the given data. The data can be restricted in frequency 
     with the fmin_GHz, fmax_GHz parameters. There are also the option to specify the band 
@@ -237,6 +238,11 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     assert band_allocation in band_options, "the available band_allocation options are %s"%band_options
     assert fmin_GHz < fmax_GHz, "warning: fmin is greater than fmax"
 
+    calibration_kwargs = {"replace_RFI":replace_RFI, 
+                          "n_SD":n_SD,
+                          "band_allocation":band_allocation,
+                          "channels":channels}
+
     # ensure that the output directory structure exists
     check_dir(outdir)
     outdir = f"{outdir}/{session_ID}/"
@@ -253,12 +259,12 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     # check if all scans were performed with the same setup
     if np.any(all_diffs != 0):
         # individually handle each scan
-        single_scan_waterfall(sdf, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, band_allocation=band_allocation, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type)
+        single_scan_waterfall(sdf, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **calibration_kwargs)
     else:
         # all scans were performed with the same setup
-        uniform_waterfalls(sdf, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, band_allocation=band_allocation, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type)
+        uniform_waterfalls(sdf, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **calibration_kwargs)
 
-def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", cal_type="median_subtract", scale="linear", outdir="./", plot_type="png"):
+def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", **kwargs):
     """
     A helper function called from GBT_waterfall to handle the loop logic for observations in which 
     all scans were performed with the same number of polarizatoins, IF windows, and feeds. 
@@ -277,9 +283,9 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", c
             for ifnum in ifnums:
                 tpsb = sdf.gettp(scan=scans,ifnum=ifnum,plnum=plnum,fdnum=fdnum)
                 for i in range(len(scans)):
-                    plot_waterfall(sdf, tpsb, i=i, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, band_allocation=band_allocation, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type)
+                    plot_waterfall(sdf, tpsb, i=i, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **kwargs)
 
-def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", cal_type="median_subtract", scale="linear", outdir="./", plot_type="png"):
+def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", **kwargs):
     """
     A helper function called from GBT_waterfall to handle the loop logic for observations in which 
     there are scans with differing numbers of polarizations or IF windows or feeds
@@ -299,15 +305,23 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none"
                 ifnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# IF"].iloc[0])
                 for ifnum in ifnums:
                     tpsb = sdf.gettp(scan=[this_scan],ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
-                    plot_waterfall(sdf, tpsb, i=0, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, band_allocation=band_allocation, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type)
+                    plot_waterfall(sdf, tpsb, i=0, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **kwargs)
 
-def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", cal_type="median_subtract", scale="linear", outdir="./", plot_type="png"):
+def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", **kwargs):
     """
     A helper function that generates and annotates a waterfall plot from GBT sdfits data. 
     This function is called from within other functions and is not meant to be called on its own. 
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    flux, freq, ts_no_spur = calbration_type[cal_type](sdf, tpsb, i)
+    # kwarg retrieval
+    band_allocation = kwargs.get("band_allocation", "none")
+    replace_RFI = kwargs.get("replace_RFI", False)
+    if replace_RFI:
+        rfi_flag_filename = "RFI_flag_"
+    else:
+        rfi_flag_filename = ""
+
+    flux, freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
 
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
 
@@ -342,7 +356,7 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
         (ax1, ax2), (ax3, ax4) = gs.subplots(sharex="col", sharey="row")
 
         #ax1
-        ax1.set_title(f"{filename}\nrcvr: {rcvr}\npeak power: {max_val} counts\nScan {scan}\npolarization {pl}\nifnum {ifn}\nfdnum {fd}\ndt = {dt} s\ndf = {df_kHz} kHz\n")
+        ax1.set_title(f"{filename}\nrcvr: {rcvr}\npeak power: {np.round(max_val, 2)} counts\nScan {scan}\npolarization {pl}\nifnum {ifn}\nfdnum {fd}\ndt = {dt} s\ndf = {df_kHz} kHz\n")
         ax1.plot(freq, flux, color="black", linewidth=1)
         ax1.set_yscale(scale)
         ax1.set_ylim(np.nanmin(flux) - 0.05 * (np.nanmax(flux) - np.nanmin(flux)), np.nanmax(flux) + 0.25*(np.nanmax(flux) - np.nanmin(flux)))
@@ -401,5 +415,5 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
         fig.colorbar(wf, ax=ax4, label='power [counts]', location='right')
         ax1.set_xlim(np.min(freq), np.max(freq))
         ax3.set_xlim(np.min(freq), np.max(freq))
-        plt.savefig(f"{outdir}/{os.path.basename(filename)}_waterfall_ifnum_{ifn}_scan_{scan}_plnum_{pl}_fdnum_{fd}_caltype_{cal_type}_metadata.{plot_type}", bbox_inches="tight", transparent=False)
+        plt.savefig(f"{outdir}/{os.path.basename(filename)}_waterfall_ifnum_{ifn}_scan_{scan}_plnum_{pl}_fdnum_{fd}_caltype_{cal_type}_{rfi_flag_filename}metadata.{plot_type}", bbox_inches="tight", transparent=False)
         plt.close("all")
