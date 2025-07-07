@@ -279,7 +279,7 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
                 tpsb = sdf.gettp(scan=scans,ifnum=ifnum,plnum=plnum,fdnum=fdnum)
                 for i in range(len(scans)):
                     # calibrate the data here
-                    flux, freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
+                    freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
 
                     # pipe relevant metadata into kwarg dictionary
@@ -321,7 +321,7 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                 for ifnum in ifnums:
                     tpsb = sdf.gettp(scan=[this_scan],ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
                     # calibrate the data here
-                    flux, freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
+                    freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
 
                     # pipe relevant metadata into kwarg dictionary

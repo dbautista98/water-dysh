@@ -21,8 +21,6 @@ def raw_data(sdf, tpsb, i=0, **kwargs):
 
     Returns:
     ----------------
-    flux : numpy.ma.MaskedArray
-        masked array containing the average spectrum of the given data
     freq : numpy.ndarray
         the frequency axis of the given data
     ts_no_spur : numpy.ma.MaskedArray
@@ -33,10 +31,9 @@ def raw_data(sdf, tpsb, i=0, **kwargs):
     """
     timeseries = tpsb[i]._calibrated # variables that start with an underscore will be replaced in fututre versions of dysh
     average_spect = tpsb[i].timeaverage()
-    flux = np.ma.masked_where(average_spect.mask, average_spect.data)
     freq = average_spect.spectral_axis.to(u.GHz).value
     ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
-    return flux, freq, ts_no_spur, "counts"
+    return freq, ts_no_spur, "counts"
 
 def median_subtract(sdf, tpsb, i=0, **kwargs):
     """
@@ -57,9 +54,6 @@ def median_subtract(sdf, tpsb, i=0, **kwargs):
 
     Returns:
     ----------------
-    flux : numpy.ma.MaskedArray
-        masked array containing the average spectrum of the given data. This is the average 
-        raw data minus the median spectrum 
     freq : numpy.ndarray
         the frequency axis of the given data
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
@@ -74,9 +68,8 @@ def median_subtract(sdf, tpsb, i=0, **kwargs):
     freq = average_spect.spectral_axis.to(u.GHz).value
     ts_no_spur = np.ma.masked_where(timeseries.mask, timeseries.data)
     median_spectrum = np.ma.median(ts_no_spur, axis=0)
-    flux = np.mean(ts_no_spur - median_spectrum, axis=0)
     ts_no_spur_median_subtracted = ts_no_spur - median_spectrum
-    return flux, freq, ts_no_spur_median_subtracted, "counts"
+    return freq, ts_no_spur_median_subtracted, "counts"
 
 def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, fdnum=0):
     """
@@ -414,8 +407,6 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
 
     Returns:
     ----------------
-    flux : numpy.ma.MaskedArray
-        masked array containing the average spectrum of the given data
     freq : numpy.ndarray
         the frequency axis of the given data
     Ta : numpy.ma.MaskedArray
@@ -452,6 +443,5 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
         nocal_ts = replace_bad_integrations(freq, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels)
 
     Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
-    flux = np.ma.mean(Ta, axis=0)
 
-    return flux, freq, Ta, "K"
+    return freq, Ta, "K"
