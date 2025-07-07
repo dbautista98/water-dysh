@@ -162,15 +162,13 @@ def get_metadata(tpsb, i=0):
 
     return az_values, el_values, timestamps
 
-def frequency_cut(flux, freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
+def frequency_cut(freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     """
     Option to apply a frequency mask to the data. This function is used as an intermediate
     helper function when plotting the data.
 
     Arguments:
     ----------------
-    flux : numpy.ma.MaskedArray
-        masked array containing the average spectrum of the given data. 
     freq : numpy.ndarray
         the frequency axis of the given data
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
@@ -182,8 +180,6 @@ def frequency_cut(flux, freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
 
     Returns:
     ---------------- 
-    flux : numpy.ma.MaskedArray
-        Freqnuency masked array containing the average spectrum of the given data. 
     freq : numpy.ndarray
         The masked frequency axis of the given data
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
@@ -194,8 +190,7 @@ def frequency_cut(flux, freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     freq_mask = np.where((freq >= fmin_GHz) & (freq <= fmax_GHz))
     ts_no_spur = ts_no_spur[::, freq_mask][::, 0, ::]
     freq = freq[freq_mask]
-    flux = flux[freq_mask]
-    return flux, freq, ts_no_spur
+    return freq, ts_no_spur
 
 def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1):
     """
@@ -255,7 +250,7 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     pl_difference = np.diff(summary_df["# POL"].values)
     fd_difference = np.diff(summary_df["# FEED"].values)
     all_diffs = np.hstack([if_difference, pl_difference, fd_difference])
-    
+
     # check if all scans were performed with the same setup
     if np.any(all_diffs != 0):
         # individually handle each scan
@@ -283,7 +278,27 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
             for ifnum in ifnums:
                 tpsb = sdf.gettp(scan=scans,ifnum=ifnum,plnum=plnum,fdnum=fdnum)
                 for i in range(len(scans)):
-                    plot_waterfall(sdf, tpsb, i=i, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **kwargs)
+                    # calibrate the data here
+                    flux, freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
+                    az_values, el_values, timestamps = get_metadata(tpsb, i=i)
+
+                    # pipe relevant metadata into kwarg dictionary
+                    kwargs["filename"]= sdf.filename
+                    kwargs["scan"] = tpsb[i].scan
+                    kwargs["pl"] = polnum_to_pol[tpsb[i].meta[0]["CRVAL4"]]
+                    kwargs["ifnum"] = tpsb[i].ifnum
+                    kwargs["fdnum"] = tpsb[i].fdnum
+                    kwargs["df_kHz"] = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
+                    kwargs["rcvr"] = tpsb[i].meta[0]["FRONTEND"]
+                    kwargs["time_delta"] = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
+                    kwargs["dt"] = np.round(kwargs["time_delta"].total_seconds(), 3)
+                    kwargs["az_values"] = az_values
+                    kwargs["el_values"] = el_values
+                    kwargs["timestamps"] = timestamps
+                    kwargs["unit"] = unit
+
+                    # generate the waterfall 
+                    plot_waterfall(freq, ts_no_spur, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **kwargs)
 
 def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", **kwargs):
     """
@@ -297,7 +312,7 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
 
     # for each scan, pull the number of feeds, polarizations, and IF windows
     # there is no reason to assume that they will be the same for all scans in a session
-    for this_scan in scans:
+    for i, this_scan in enumerate(scans):
         fdnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# FEED"].iloc[0])
         for fdnum in fdnums:
             plnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# POL"].iloc[0])
@@ -305,52 +320,99 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                 ifnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# IF"].iloc[0])
                 for ifnum in ifnums:
                     tpsb = sdf.gettp(scan=[this_scan],ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
-                    plot_waterfall(sdf, tpsb, i=0, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **kwargs)
+                    # calibrate the data here
+                    flux, freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
+                    az_values, el_values, timestamps = get_metadata(tpsb, i=i)
 
-def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", **kwargs):
+                    # pipe relevant metadata into kwarg dictionary
+                    kwargs["filename"]= sdf.filename
+                    kwargs["scan"] = tpsb[i].scan
+                    kwargs["pl"] = polnum_to_pol[tpsb[i].meta[0]["CRVAL4"]]
+                    kwargs["ifnum"] = tpsb[i].ifnum
+                    kwargs["fdnum"] = tpsb[i].fdnum
+                    kwargs["df_kHz"] = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
+                    kwargs["rcvr"] = tpsb[i].meta[0]["FRONTEND"]
+                    kwargs["time_delta"] = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
+                    kwargs["dt"] = np.round(kwargs["time_delta"].total_seconds(), 3)
+                    kwargs["az_values"] = az_values
+                    kwargs["el_values"] = el_values
+                    kwargs["timestamps"] = timestamps
+                    kwargs["unit"] = unit
+
+                    # generate waterfall 
+                    plot_waterfall(freq, ts_no_spur, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz, cal_type=cal_type, scale=scale, outdir=outdir, plot_type=plot_type, **kwargs)
+
+def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", **kwargs):
     """
     A helper function that generates and annotates a waterfall plot from GBT sdfits data. 
-    This function is called from within other functions and is not meant to be called on its own. 
-    For a detailed description of the arguments, see the documentation for GBT_waterfalls
+    This function is called from within other functions but can be called on its own. 
+    
+    Arguments:
+    ----------------
+    freq : numpy.ndarray
+        the frequency axis of the given data to be plotted. It should have shape (nchan,)
+    timeseries_grid : numpy.ma.MaskedArray
+        The time series data of the scan to be plotted. It has shape (n_int, nchan)
+    fmin_GHz : float
+        minimum frequency that will be plotted. The default is 0 GHz. 
+    fmax_GHz : float
+        maximum frequency that will be plotted. The default is 1e99 GHz. 
+    cal_type : str
+        label to identify what operations were done to scale the data. 
+        changing this label allows the user to change which calibration
+        type is used on the data. Running which_calibration() will show 
+        the available options
+    scale : str
+        the option to change the scaling of the data. It can either be 
+        linear or log scaled. The default is linear
+    outdir : str
+        filepath to where the generated plots will be saved
+    plot_type : str
+        the ablity to specify whether to save the plot as a pdf or png. 
+        The default is to save as a png
     """
+    assert len(freq) == timeseries_grid.shape[1], f"input data dimensions do not match: {len(freq)}, {timeseries_grid.shape[1]}"
+
     # kwarg retrieval
     band_allocation = kwargs.get("band_allocation", "none")
     replace_RFI = kwargs.get("replace_RFI", False)
+
+    # previously dysh object metadata, now from kwargs
+    filename = kwargs.get("filename", "unknown_project") 
+    scan = kwargs.get("scan", -999) 
+    pl = kwargs.get("pl", -999)
+    ifn = kwargs.get("ifnum", -999)
+    fd = kwargs.get("fdnum", -999)
+    df_kHz = kwargs.get("df_kHz", -999)
+    rcvr = kwargs.get("rcvr", "unknown")
+    time_delta = kwargs.get("time_delta", -999) 
+    dt = kwargs.get("dt", -999)
+    unit = kwargs.get("unit", "unknown")
+    az_values = kwargs.get("az_values", -999*np.ones(len(timeseries_grid)))
+    el_values = kwargs.get("el_values", -999*np.ones(len(timeseries_grid)))
+    timestamps = len(timeseries_grid)*["-999"]
+
     if replace_RFI:
         rfi_flag_filename = "RFI_flag_"
     else:
         rfi_flag_filename = ""
 
-    flux, freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i)
-
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
-
-        az_values, el_values, timestamps = get_metadata(tpsb, i=i)
-
-        filename = sdf.filename
-        scan = tpsb[i].scan
-        pl = polnum_to_pol[tpsb[i].meta[0]["CRVAL4"]]
-        ifn = tpsb[i].ifnum
-        fd = tpsb[i].fdnum
-        df_kHz = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
-        rcvr = tpsb[i].meta[0]["FRONTEND"]
-        time_delta = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
-        dt = np.round(time_delta.total_seconds(), 3)
-
         print(f"plotting: scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
-        
-        flux, freq, ts_no_spur = frequency_cut(flux, freq, ts_no_spur)
-        extent = [freq[0], freq[-1], 0, len(ts_no_spur)]
 
-        max_val = np.nanmax(ts_no_spur)
-        y = np.arange(len(ts_no_spur))
-        data_sd = np.nanstd(ts_no_spur)
-        data_mean = np.ma.median(ts_no_spur)
+        freq, timeseries_grid = frequency_cut(freq, timeseries_grid)
+        extent = [freq[0], freq[-1], 0, len(timeseries_grid)]
+
+        flux = np.ma.mean(timeseries_grid, axis=0)
+        max_val = np.nanmax(timeseries_grid)
+        y = np.arange(len(timeseries_grid))
+        data_sd = np.nanstd(timeseries_grid)
+        data_mean = np.ma.median(timeseries_grid)
         vmax = data_mean + 2*data_sd
         vmin = data_mean - 2*data_sd
 
         plt.close("all")
-        time_series = np.nanmean(ts_no_spur, axis=1)
+        time_series = np.nanmean(timeseries_grid, axis=1)
         fig = plt.figure(figsize=(10,10))
         gs = fig.add_gridspec(2,2, hspace=0.02, wspace=0.03, width_ratios=[3,1], height_ratios=[1,3])
         (ax1, ax2), (ax3, ax4) = gs.subplots(sharex="col", sharey="row")
@@ -367,7 +429,7 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_s
         ax2.set_visible(not ax2)
 
         #ax3
-        wf = ax3.imshow(ts_no_spur, aspect="auto", extent=extent, vmin=vmin, vmax=vmax, origin="lower")
+        wf = ax3.imshow(timeseries_grid, aspect="auto", extent=extent, vmin=vmin, vmax=vmax, origin="lower")
         ax3.set_xlabel("Frequency [GHz]")
         ax3.set_ylabel("timestamp [UTC]\npointing (AZ, EL)")
         plot_band_allocations(ax3, freq, band_allocation=band_allocation, show_label=False)
@@ -398,12 +460,12 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_s
             ax3.set_yticks(yticks)
             ax3.set_yticklabels(new_labels)
         else:
-            integration_indices = np.linspace(0, len(ts_no_spur), num=len(ax3.get_yticklabels()), dtype=int)
+            integration_indices = np.linspace(0, len(timeseries_grid), num=len(ax3.get_yticklabels()), dtype=int)
             new_labels = []
             new_labels.append(all_labels[0])
             for index in integration_indices[1:]:
                 new_labels.append(all_labels[index-1])
-            
+
             ax3.set_yticks(integration_indices)
             ax3.set_yticklabels(new_labels)
 
