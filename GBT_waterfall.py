@@ -356,11 +356,11 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_s
         (ax1, ax2), (ax3, ax4) = gs.subplots(sharex="col", sharey="row")
 
         #ax1
-        ax1.set_title(f"{filename}\nrcvr: {rcvr}\npeak power: {np.round(max_val, 2)} counts\nScan {scan}\npolarization {pl}\nifnum {ifn}\nfdnum {fd}\ndt = {dt} s\ndf = {df_kHz} kHz\n")
+        ax1.set_title(f"{filename}\nrcvr: {rcvr}\npeak power: {np.round(max_val, 2)} {unit}\nScan {scan}\npolarization {pl}\nifnum {ifn}\nfdnum {fd}\ndt = {dt} s\ndf = {df_kHz} kHz\n")
         ax1.plot(freq, flux, color="black", linewidth=1)
         ax1.set_yscale(scale)
         ax1.set_ylim(np.nanmin(flux) - 0.05 * (np.nanmax(flux) - np.nanmin(flux)), np.nanmax(flux) + 0.25*(np.nanmax(flux) - np.nanmin(flux)))
-        ax1.set_ylabel("average power\n[counts]")
+        ax1.set_ylabel(f"average power\n[{unit}]")
         plot_band_allocations(ax1, freq, band_allocation=band_allocation)
 
         #ax2
@@ -410,9 +410,9 @@ def plot_waterfall(sdf, tpsb, i=0, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_s
         #ax4
         ax4.plot(time_series, y + 0.5, color="black", linewidth=1)
         ax4.set_xscale(scale)
-        ax4.set_xlabel("\naverage power per\nfrequency channel\n[counts]")
+        ax4.set_xlabel(f"\naverage power per\nfrequency channel\n[{unit}]")
 
-        fig.colorbar(wf, ax=ax4, label='power [counts]', location='right')
+        fig.colorbar(wf, ax=ax4, label=f'power [{unit}]', location='right')
         ax1.set_xlim(np.min(freq), np.max(freq))
         ax3.set_xlim(np.min(freq), np.max(freq))
         plt.savefig(f"{outdir}/{os.path.basename(filename)}_waterfall_ifnum_{ifn}_scan_{scan}_plnum_{pl}_fdnum_{fd}_caltype_{cal_type}_{rfi_flag_filename}metadata.{plot_type}", bbox_inches="tight", transparent=False)
