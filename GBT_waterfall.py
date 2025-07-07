@@ -390,7 +390,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     unit = kwargs.get("unit", "unknown")
     az_values = kwargs.get("az_values", -999*np.ones(len(timeseries_grid)))
     el_values = kwargs.get("el_values", -999*np.ones(len(timeseries_grid)))
-    timestamps = len(timeseries_grid)*["-999"]
+    timestamps = kwargs.get("timestamps", len(timeseries_grid)*["-999"])
 
     if replace_RFI:
         rfi_flag_filename = "RFI_flag_"
