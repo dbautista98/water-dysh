@@ -413,7 +413,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
 
         plt.close("all")
         time_series = np.nanmean(timeseries_grid, axis=1)
-        fig = plt.figure(figsize=(10,10))
+        fig = plt.figure(figsize=(10,12), layout="constrained")
         gs = fig.add_gridspec(2,2, hspace=0.02, wspace=0.03, width_ratios=[3,1], height_ratios=[1,3])
         (ax1, ax2), (ax3, ax4) = gs.subplots(sharex="col", sharey="row")
 
@@ -432,6 +432,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         wf = ax3.imshow(timeseries_grid, aspect="auto", extent=extent, vmin=vmin, vmax=vmax, origin="lower")
         ax3.set_xlabel("Frequency [GHz]")
         ax3.set_ylabel("timestamp [UTC]\npointing (AZ, EL)")
+        fig.colorbar(wf, ax=ax3, label=f'power [{unit}]', orientation="horizontal")
         plot_band_allocations(ax3, freq, band_allocation=band_allocation, show_label=False)
 
         pointing_coords = []
@@ -474,7 +475,6 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         ax4.set_xscale(scale)
         ax4.set_xlabel(f"\naverage power per\nfrequency channel\n[{unit}]")
 
-        fig.colorbar(wf, ax=ax4, label=f'power [{unit}]', location='right')
         ax1.set_xlim(np.min(freq), np.max(freq))
         ax3.set_xlim(np.min(freq), np.max(freq))
         plt.savefig(f"{outdir}/{os.path.basename(filename)}_waterfall_ifnum_{ifn}_scan_{scan}_plnum_{pl}_fdnum_{fd}_caltype_{cal_type}_{rfi_flag_filename}metadata.{plot_type}", bbox_inches="tight", transparent=False)
