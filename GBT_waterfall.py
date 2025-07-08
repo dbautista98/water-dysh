@@ -401,7 +401,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
         print(f"plotting: scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
 
-        freq, timeseries_grid = frequency_cut(freq, timeseries_grid)
+        freq, timeseries_grid = frequency_cut(freq, timeseries_grid, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz)
         extent = [freq[0], freq[-1], 0, len(timeseries_grid)]
 
         flux = np.ma.mean(timeseries_grid, axis=0)
