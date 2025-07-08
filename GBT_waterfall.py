@@ -376,6 +376,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     # kwarg retrieval
     band_allocation = kwargs.get("band_allocation", "none")
     replace_RFI = kwargs.get("replace_RFI", False)
+    n_SD = kwargs.get("n_SD", 1)
 
     # previously dysh object metadata, now from kwargs
     filename = kwargs.get("filename", "unknown_project") 
@@ -393,7 +394,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     timestamps = kwargs.get("timestamps", len(timeseries_grid)*["-999"])
 
     if replace_RFI:
-        rfi_flag_filename = "RFI_flag_"
+        rfi_flag_filename = f"RFI_flag_n-SD_{n_SD}_"
     else:
         rfi_flag_filename = ""
 
