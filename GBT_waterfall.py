@@ -77,6 +77,7 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
         top of the figure 
     """
     ylim = ax.get_ylim()
+    ax.set_ylim(ylim)
     ylim_chan_label = ylim[1] + 0.01*(ylim[1] - ylim[0])
 
     for i,nc in enumerate(list(band_allocation_ghz_dict[band_allocation].keys())):
