@@ -363,7 +363,7 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
         A list of unique indices corresponding to the flagged subintegrations across 
         all checked channels
     """
-    all_flagged = []
+    all_flagged = [[]]
     for chan in channels:
         low_f, high_f = band_allocation_ghz_dict[band_allocation][chan]
         time_slice = chunk_timeseries(low_f, high_f, freq, timeseries_grid)
@@ -419,7 +419,7 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     n_SD = kwargs.get("n_SD", 1)
     band_allocation = kwargs.get("band_allocation", "none")
     channels = kwargs.get("channels", [])
-    
+
     # pull scan metadata from tpsb object
     scan = tpsb[i].meta[0]["SCAN"]
     ifnum = tpsb[i].meta[0]["IFNUM"]
