@@ -224,7 +224,7 @@ def get_good_neighbor(bad_index, all_bad_indices, data_length):
         while upper_index in all_bad_indices and upper_index >= 0:
             upper_index -= 1
 
-    return lower_index, upper_index
+    return int(lower_index), int(upper_index)
 
 def channel_timeseries(target_freq_GHz, freq_axis, timeseries_grid):
     """
@@ -369,7 +369,7 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
         time_slice = chunk_timeseries(low_f, high_f, freq, timeseries_grid)
         bad_indices = find_RFI_integrations(time_slice, n_SD=sd_threshold)
         all_flagged.append(bad_indices)
-    all_flagged = np.unique(np.hstack(all_flagged))
+    all_flagged = np.unique(np.hstack(all_flagged)).astype(int)
     return all_flagged
 
 def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
