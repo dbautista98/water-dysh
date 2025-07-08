@@ -275,7 +275,6 @@ def chunk_timeseries(low_f, high_f, freq_axis, timeseries_grid):
         of the scan. It will have shape (n_int,)
     """
     assert timeseries_grid.shape[1] == len(freq_axis), f"Data shapes do not match: grid channels: {timeseries_grid.shape[1]}, frequency axis channels: {len(freq_axis)}"
-    assert np.min(freq_axis) <= low_f and  np.max(freq_axis) >= high_f, "target frequency range exceeds data range"
 
     mask = np.where((low_f <= freq_axis) & (freq_axis <= high_f))
     selected_data = timeseries_grid[::, mask][::, 0, ::]
