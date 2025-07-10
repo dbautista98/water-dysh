@@ -188,6 +188,8 @@ def frequency_cut(freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
         nchan is now the number of frequency channels that fall within the 
         specified boundaries. 
     """
+    ts_no_spur = np.ma.copy(ts_no_spur)
+    freq = np.ma.copy(freq)
     freq_mask = np.where((freq >= fmin_GHz) & (freq <= fmax_GHz))
     ts_no_spur = ts_no_spur[::, freq_mask][::, 0, ::]
     freq = freq[freq_mask]
