@@ -122,7 +122,7 @@ def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, f
     tsys = np.array(list(tpsb[0].meta[i]["TSYS"] for i in range(len(tpsb[0].meta))))
     return freq, ts_no_spur, tsys
 
-def replace_bad_integrations(freq, ts_grid, n_SD=1, band_allocation="none", channels=[]):
+def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allocation="none", channels=[]):
     """
     A function to identify integrations that have a strong presence of 
     broadband RFI (signals on the order of 5-250 MHz) and replace them 
@@ -139,8 +139,10 @@ def replace_bad_integrations(freq, ts_grid, n_SD=1, band_allocation="none", chan
     ----------------
     freq : numpy.ndarray
         the frequency axis of the given data
-    ts_grid : numpy.ma.MaskedArray
-        The time series data of the scan block. It has shape (n_int, nchan). 
+    cal_ts_grid : numpy.ma.MaskedArray
+        The time series data of the scan block with noise diode on. It has shape (n_int, nchan). 
+    nocal_ts_grid : numpy.ma.MaskedArray
+        The time series data of the scan block with noise diode off. It has shape (n_int, nchan). 
     n_SD : float
         the number of standard deviations above the median spectrum averaged 
         total power to consider an integration to have RFI. Integrations exceeding
@@ -153,25 +155,29 @@ def replace_bad_integrations(freq, ts_grid, n_SD=1, band_allocation="none", chan
 
     Returns:
     ----------------
-    ts_grid : numpy.ma.MaskedArray
-        The time series data of the scan block. It has shape (n_int, nchan). 
+    nocal_ts_grid : numpy.ma.MaskedArray
+        The time series data of the scan block with noise diode off. It has shape (n_int, nchan). 
         This array will contain data that has been cleaned of RFI in the flagged
         integrations. 
     """
-    timeseries_grid = np.ma.copy(ts_grid)
+    assert cal_ts_grid.shape == nocal_ts_grid.shape, f"cal and nocal data are of different shape: {cal_ts_grid.shape}, {nocal_ts_grid.shape}"
+    cal_ts_grid = np.ma.copy(cal_ts_grid)
+    nocal_ts_grid = np.ma.copy(nocal_ts_grid)
+    noise_diode_timeseries_grid = cal_ts_grid - nocal_ts_grid
     # identify indices of integrations that have strong RFI
-    bad_indices = flag_RFI_channels(freq, timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)
-    print(f"replacing {len(bad_indices)} integrations ({np.round(len(bad_indices)/len(timeseries_grid)*100, 2)}%) with cleaner data")
+    bad_indices = flag_RFI_channels(freq, noise_diode_timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)
+    print(f"replacing {len(bad_indices)} integrations ({np.round(len(bad_indices)/len(noise_diode_timeseries_grid)*100, 2)}%) with cleaner data")
 
     for indx in bad_indices:
         # identify upper and lower indices of integrations that have
         #   less (ideally none) RFI 
-        lower, upper = get_good_neighbor(indx, bad_indices, len(ts_grid))
+        print(f"flagged index: {indx}")
+        lower, upper = get_good_neighbor(indx, bad_indices, len(nocal_ts_grid))
+        print(f"replacement indices: {lower, upper}")
+        replacement_spectrum = select_replacement_spectrum(nocal_ts_grid, lower, upper)
+        nocal_ts_grid[indx] = replacement_spectrum
 
-        replacement_spectrum = select_replacement_spectrum(ts_grid, lower, upper)
-        ts_grid[indx] = replacement_spectrum
-
-    return ts_grid
+    return nocal_ts_grid
 
 def get_good_neighbor(bad_index, all_bad_indices, data_length):
     """
@@ -302,7 +308,7 @@ def find_RFI_integrations(time_series, n_SD=1):
     """
     # Identify which integrations are affected by strong RFI 
     median_power = np.ma.median(time_series)
-    sd = np.ma.sqrt(np.sum( (time_series - median_power)**2 ) / len(time_series))
+    sd = np.ma.sqrt(np.ma.sum( (time_series - median_power)**2 ) / len(time_series))
     bad_indices = np.ma.where((median_power - n_SD*sd >= time_series) | (time_series >= median_power + n_SD*sd))
     return bad_indices[0]
 
@@ -429,6 +435,10 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     freq,  cal_ts, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
     freq, nocal_ts, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
     assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
+
+    # replace the bad integrations from the off data
+    if replace_RFI:
+        nocal_ts = replace_bad_integrations(freq, cal_ts, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels)
     
     # find the median noise diode spectrum 
     # the noise diode spectrum is very stable over the course of a scan, and the biggest variation in power
@@ -436,10 +446,6 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     # taking the median spectrum will protect against variations in power from RFI
     noise_diode_spectrum = np.ma.median(cal_ts - nocal_ts, axis=0)
     cal_ts = cal_ts - noise_diode_spectrum
-
-    # replace the bad integrations from the off data
-    if replace_RFI:
-        nocal_ts = replace_bad_integrations(freq, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels)
 
     Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
 
