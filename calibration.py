@@ -164,8 +164,17 @@ def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allo
     cal_ts_grid = np.ma.copy(cal_ts_grid)
     nocal_ts_grid = np.ma.copy(nocal_ts_grid)
     noise_diode_timeseries_grid = cal_ts_grid - nocal_ts_grid
+    noise_diode = np.ma.median(noise_diode_timeseries_grid, axis=0)
+
+    # combining the calON and calOFF data
+    full_timeseries_grid = np.ma.empty((2*cal_ts_grid.shape[0], nocal_ts_grid.shape[1]))
+    full_timeseries_grid[0::2, ::] = cal_ts_grid - noise_diode 
+    full_timeseries_grid[1::2, ::] = nocal_ts_grid
+    meshed_data = np.ma.copy(full_timeseries_grid) - np.ma.median(nocal_ts_grid, axis=0)
+    timeseries_grid = np.diff(meshed_data, axis=0)
+    
     # identify indices of integrations that have strong RFI
-    bad_indices = flag_RFI_channels(freq, noise_diode_timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)
+    bad_indices = flag_RFI_channels(freq, timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)//2
     print(f"replacing {len(bad_indices)} integrations ({np.round(len(bad_indices)/len(noise_diode_timeseries_grid)*100, 2)}%) with cleaner data")
 
     for indx in bad_indices:
@@ -374,6 +383,8 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
         time_slice = chunk_timeseries(low_f, high_f, freq, timeseries_grid)
         bad_indices = find_RFI_integrations(time_slice, n_SD=sd_threshold)
         all_flagged.append(bad_indices)
+    if np.any(all_flagged == len(timeseries_grid - 1)):
+        all_flagged.append(len(timeseries_grid))
     all_flagged = np.unique(np.hstack(all_flagged)).astype(int)
     return all_flagged
 
