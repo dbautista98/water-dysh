@@ -233,6 +233,13 @@ def get_good_neighbor(bad_index, all_bad_indices, data_length):
         upper_index = lower_index - 1
         while upper_index in all_bad_indices and upper_index >= 0:
             upper_index -= 1
+    
+    # occasionally there will be scans where there is only one RFI free integration
+    # this code will handle those instances 
+    if upper_index == -1:
+        upper_index = lower_index
+    if lower_index == data_length:
+        lower_index = upper_index
 
     return int(lower_index), int(upper_index)
 
