@@ -174,7 +174,7 @@ def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allo
     timeseries_grid = np.diff(meshed_data, axis=0)
     
     # identify indices of integrations that have strong RFI
-    bad_indices = flag_RFI_channels(freq, timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)//2
+    bad_indices = np.unique(flag_RFI_channels(freq, timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)//2)
     print(f"replacing {len(bad_indices)} integrations ({np.round(len(bad_indices)/len(noise_diode_timeseries_grid)*100, 2)}%) with cleaner data")
 
     for indx in bad_indices:
@@ -225,16 +225,11 @@ def get_good_neighbor(bad_index, all_bad_indices, data_length):
     while upper_index in all_bad_indices and upper_index < data_length - 1:
         upper_index += 1
 
-    # is this block still needed if I have the following code? 
-    if lower_index < 0 and upper_index >= data_length:
-        print(f"lower index: {lower_index}, upper index: {upper_index}, number of integrations: {data_length}")
-        raise Exception("data out of range. Tell Dan he needs to fix this.")
-
-    elif lower_index < 0:
+    if lower_index < 0:
         lower_index = upper_index + 1
         while lower_index in all_bad_indices and lower_index < data_length - 1:
             lower_index += 1
-    elif upper_index >= data_length:
+    if upper_index >= data_length - 1:
         upper_index = lower_index - 1
         while upper_index in all_bad_indices and upper_index >= 0:
             upper_index -= 1
