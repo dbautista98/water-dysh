@@ -74,6 +74,85 @@ def median_subtract(sdf, tpsb, i=0, **kwargs):
     ts_no_spur_median_subtracted = ts_no_spur - median_spectrum
     return freq, ts_no_spur_median_subtracted, "counts"
 
+def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
+    """
+    Take a scan block and use noise diode and system temperature data to calibrate 
+    to antenna temperature (Ta). This is a modification of standard calibration method, 
+    the initial process is outlined in 
+    https://www.gb.nrao.edu/GBT/DA/gbtidl/gbtidl_calibration.pdf
+
+    There is also the option to pass a list of band allocations and a flagging threshold
+    to search for, flag, and clean integrations that have strong RFI in the reference data. 
+    This is useful when dealing with strong RFI that passes through the telescope beam on 
+    short timescales, such that there is a significant change in received intensity when 
+    switching from CALOFF to CALON or vice versa. 
+
+    Arguments:
+    ----------------
+    sdf : dysh.fits.gbtfitsload.GBTOffline
+        a Dysh object holding the loaded data of a GBT observation
+    tpsb : dysh.spectra.scan.ScanBlock
+        total power scan block that contains all the relevant data for an observation
+    i : int
+        index of the tpsb object. Defaults to zero. This is used to index through individual scans
+    replace_RFI : bool
+        A flag specifying whether to clean integrations with strong RFI 
+    n_SD : float
+        the number of standard deviations above the median spectrum averaged 
+        total power to consider an integration to have RFI. Integrations exceeding
+        this criteria will be flagged for replacement with data containing less RFI.
+    band_allocation : str
+        the key to identify which set of known band allocations to use for RFI flagging
+    channels : list of str
+        A list of channel names to loop over. These channel names coorrespond to a 
+        list containing a pair of [lower, upper] frequency bounds in units of GHz
+
+    Returns:
+    ----------------
+    freq : numpy.ndarray
+        the frequency axis of the given data, in units of GHz
+    Ta : numpy.ma.MaskedArray
+        The calibrated time series data of the scan block. It has shape (n_int, nchan)
+        and has units of antenna temperature [Kelvin]
+    unit : str
+        The units of the returned spectra
+    """
+    replace_RFI = kwargs.get("replace_RFI", False)
+    n_SD = kwargs.get("n_SD", 1)
+    band_allocation = kwargs.get("band_allocation", "none")
+    channels = kwargs.get("channels", [])
+    debug = kwargs.get("debug", False)
+    
+    # pull scan metadata from tpsb object
+    scan = tpsb[i].meta[0]["SCAN"]
+    ifnum = tpsb[i].meta[0]["IFNUM"]
+    plnum = tpsb[i].meta[0]["PLNUM"]
+    fdnum = tpsb[i].meta[0]["FDNUM"]
+
+    # read in the data, keeping both a calon and caloff set
+    freq,  cal_ts, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    freq, nocal_ts, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
+    assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
+
+    # replace the bad integrations from the off data
+    if replace_RFI:
+        nocal_ts = replace_bad_integrations(freq, cal_ts, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels, debug=debug)
+    
+    # find the median noise diode spectrum 
+    # the noise diode spectrum is very stable over the course of a scan, and the biggest variation in power
+    #   comes from strong RFI that changes rapidly in power between subsequent CALOF, CALON integrations
+    # taking the median spectrum will protect against variations in power from RFI
+    noise_diode_spectrum = np.ma.median(cal_ts - nocal_ts, axis=0)
+    cal_ts = cal_ts - noise_diode_spectrum
+
+    Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
+
+    return freq, Ta, "K"
+
+
+
+
+# helper functions for `calibrate_Ta`
 def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, fdnum=0):
     """
     A helper function to return the spectrum and frequency axis from the given
@@ -419,81 +498,6 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
         plot_z(time_slice, all_flagged, filename="debug_all_flags.png")
     
     return all_flagged
-
-def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
-    """
-    Take a scan block and use noise diode and system temperature data to calibrate 
-    to antenna temperature (Ta). This is a modification of standard calibration method, 
-    the initial process is outlined in 
-    https://www.gb.nrao.edu/GBT/DA/gbtidl/gbtidl_calibration.pdf
-
-    There is also the option to pass a list of band allocations and a flagging threshold
-    to search for, flag, and clean integrations that have strong RFI in the reference data. 
-    This is useful when dealing with strong RFI that passes through the telescope beam on 
-    short timescales, such that there is a significant change in received intensity when 
-    switching from CALOFF to CALON or vice versa. 
-
-    Arguments:
-    ----------------
-    sdf : dysh.fits.gbtfitsload.GBTOffline
-        a Dysh object holding the loaded data of a GBT observation
-    tpsb : dysh.spectra.scan.ScanBlock
-        total power scan block that contains all the relevant data for an observation
-    i : int
-        index of the tpsb object. Defaults to zero. This is used to index through individual scans
-    replace_RFI : bool
-        A flag specifying whether to clean integrations with strong RFI 
-    n_SD : float
-        the number of standard deviations above the median spectrum averaged 
-        total power to consider an integration to have RFI. Integrations exceeding
-        this criteria will be flagged for replacement with data containing less RFI.
-    band_allocation : str
-        the key to identify which set of known band allocations to use for RFI flagging
-    channels : list of str
-        A list of channel names to loop over. These channel names coorrespond to a 
-        list containing a pair of [lower, upper] frequency bounds in units of GHz
-
-    Returns:
-    ----------------
-    freq : numpy.ndarray
-        the frequency axis of the given data, in units of GHz
-    Ta : numpy.ma.MaskedArray
-        The calibrated time series data of the scan block. It has shape (n_int, nchan)
-        and has units of antenna temperature [Kelvin]
-    unit : str
-        The units of the returned spectra
-    """
-    replace_RFI = kwargs.get("replace_RFI", False)
-    n_SD = kwargs.get("n_SD", 1)
-    band_allocation = kwargs.get("band_allocation", "none")
-    channels = kwargs.get("channels", [])
-    debug = kwargs.get("debug", False)
-    
-    # pull scan metadata from tpsb object
-    scan = tpsb[i].meta[0]["SCAN"]
-    ifnum = tpsb[i].meta[0]["IFNUM"]
-    plnum = tpsb[i].meta[0]["PLNUM"]
-    fdnum = tpsb[i].meta[0]["FDNUM"]
-
-    # read in the data, keeping both a calon and caloff set
-    freq,  cal_ts, tsys = get_spectrum_and_freq(sdf, calstate=True, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
-    freq, nocal_ts, tsys = get_spectrum_and_freq(sdf, calstate=False, scan=scan, ifnum=ifnum, plnum=plnum, fdnum=fdnum)
-    assert cal_ts.shape == nocal_ts.shape, "data shapes do not match: %s vs %s" %(cal_ts.shape, nocal_ts.shape)
-
-    # replace the bad integrations from the off data
-    if replace_RFI:
-        nocal_ts = replace_bad_integrations(freq, cal_ts, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels, debug=debug)
-    
-    # find the median noise diode spectrum 
-    # the noise diode spectrum is very stable over the course of a scan, and the biggest variation in power
-    #   comes from strong RFI that changes rapidly in power between subsequent CALOF, CALON integrations
-    # taking the median spectrum will protect against variations in power from RFI
-    noise_diode_spectrum = np.ma.median(cal_ts - nocal_ts, axis=0)
-    cal_ts = cal_ts - noise_diode_spectrum
-
-    Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
-
-    return freq, Ta, "K"
 
 def z_score(data, average_fn=np.ma.median):
     """
