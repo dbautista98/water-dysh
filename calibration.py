@@ -1,5 +1,8 @@
 import numpy as np
 import astropy.units as u
+import os
+from datetime import datetime
+import matplotlib.pyplot as plt
 try:
     from band_allocations import band_allocation_ghz_dict
 except:
@@ -122,7 +125,7 @@ def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, f
     tsys = np.array(list(tpsb[0].meta[i]["TSYS"] for i in range(len(tpsb[0].meta))))
     return freq, ts_no_spur, tsys
 
-def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allocation="none", channels=[]):
+def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allocation="none", channels=[], debug=False):
     """
     A function to identify integrations that have a strong presence of 
     broadband RFI (signals on the order of 5-250 MHz) and replace them 
@@ -153,6 +156,9 @@ def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allo
     channels : list of str
         A list of channel names to loop over. These channel names coorrespond to a 
         list containing a pair of [lower, upper] frequency bounds in units of GHz
+    debug : bool
+        A flag to generate log csv and plots. These outputs will be saved to the 
+        current working directory
 
     Returns:
     ----------------
@@ -175,9 +181,18 @@ def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allo
     timeseries_grid = np.diff(meshed_data, axis=0)
     
     # identify indices of integrations that have strong RFI
-    bad_indices = np.unique(flag_RFI_channels(freq, timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels)//2)
+    bad_indices = np.unique(flag_RFI_channels(freq, timeseries_grid, n_SD, band_allocation=band_allocation, channels=channels, debug=debug)//2)
+    
+    if debug:
+        # debug plot
+        time_slice = np.mean(nocal_ts_grid, axis=1)
+        plot_z(time_slice, bad_indices, filename="debug_final_flags.png")
+        log_flags(n_SD, len(bad_indices), len(noise_diode_timeseries_grid))
+
     print(f"replacing {len(bad_indices)} integrations ({np.round(len(bad_indices)/len(noise_diode_timeseries_grid)*100, 2)}%) with cleaner data")
 
+    assert len(bad_indices) != len(noise_diode_timeseries_grid), "Warning no clean integrations were found, try using a higher SD for flagging"
+    print(f"flagged indices: {bad_indices}")
     for indx in bad_indices:
         # identify upper and lower indices of integrations that have
         #   less (ideally none) RFI 
@@ -351,7 +366,7 @@ def select_replacement_spectrum(timeseries_grid, good_lower, good_upper):
 
     return best_replacement
 
-def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none", channels=[]):
+def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none", channels=[], debug=False):
     """
     Takes a set of known frequency allocations and a time-series of spectra and
     checks each frequency range for the presence of strong RFI. This list of flagged
@@ -374,6 +389,9 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
     channels : list of str
         A list of channel names to loop over. These channel names coorrespond to a 
         list containing a pair of [lower, upper] frequency bounds in units of GHz
+    debug : bool
+        A flag to generate log csv and plots. These outputs will be saved to the 
+        current working directory
 
     Returns:
     ----------------
@@ -387,9 +405,19 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
         time_slice = chunk_timeseries(low_f, high_f, freq, timeseries_grid)
         bad_indices = find_RFI_integrations(time_slice, n_SD=sd_threshold)
         all_flagged.append(bad_indices)
+        
+        if debug:
+            # debug plot
+            plot_z(time_slice, bad_indices, sd_threshold, filename=f"debug_{chan}.png", annotate=True)
+        
     if np.any(all_flagged == len(timeseries_grid - 1)):
         all_flagged.append(len(timeseries_grid))
     all_flagged = np.unique(np.hstack(all_flagged)).astype(int)
+
+    if debug: 
+        # debug plot
+        plot_z(time_slice, all_flagged, filename="debug_all_flags.png")
+    
     return all_flagged
 
 def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
@@ -439,7 +467,8 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     n_SD = kwargs.get("n_SD", 1)
     band_allocation = kwargs.get("band_allocation", "none")
     channels = kwargs.get("channels", [])
-
+    debug = kwargs.get("debug", False)
+    
     # pull scan metadata from tpsb object
     scan = tpsb[i].meta[0]["SCAN"]
     ifnum = tpsb[i].meta[0]["IFNUM"]
@@ -453,7 +482,7 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
 
     # replace the bad integrations from the off data
     if replace_RFI:
-        nocal_ts = replace_bad_integrations(freq, cal_ts, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels)
+        nocal_ts = replace_bad_integrations(freq, cal_ts, nocal_ts, n_SD=n_SD, band_allocation=band_allocation, channels=channels, debug=debug)
     
     # find the median noise diode spectrum 
     # the noise diode spectrum is very stable over the course of a scan, and the biggest variation in power
@@ -465,3 +494,154 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     Ta = tsys[:, np.newaxis] * ((cal_ts - nocal_ts) / nocal_ts)
 
     return freq, Ta, "K"
+
+def z_score(data, average_fn=np.ma.median):
+    """
+    calculates the z-score of the data using a specified averaging function
+    The z-score is defined as Z = (x - average) / SD
+
+    Arguments:
+    ----------------
+    data : numpy.ma.MaskedArray
+        The average intensity over the specified frequency range for the course
+        of the scan. It will have shape (n_int,)
+    average_fn
+        a numpy vector compatible function that will average the contents of `data`
+        The default function is np.ma.median
+
+    Returns:
+    ----------------
+    z_score : numpy.ma.MaskedArray
+        The average intensity over the specified frequency range for the course
+        of the scan. It will have shape (n_int,)
+    """
+    average = average_fn(data)
+    sd = np.ma.sqrt(np.ma.sum( (data - average)**2 ) / len(data))
+    z = (data - average) / sd
+    return z
+
+def highlight_bad_integrations(ax, bad_index, color="red"):
+    """
+    adds highlighed regions to the the provided figure
+
+    Arguments:
+    ----------------
+    ax : matplotlib.axes._axes.Axes
+        the specific subplot object that will be annotated 
+    bad_index : int
+        The index of a subintegration that has been flagged as containing
+        excessive amounts of RFI
+    color : str
+        The color to highlight the regions that exceed the provided threshold. 
+        This color should be compatible with matplotlib options.
+    """
+    ax.axhspan(bad_index, bad_index + 1, alpha=0.1, color=color)
+
+def plot_z(time_slice, bad_indices, sd_threshold=1, filename="debug.png", annotate=False):
+    """
+    Generages a plot of the z-score for the provided data, and highlights the data points that
+    exceed the provided threshold. The plot is then saved to the current working directory.
+    
+    Arguments:
+    ----------------
+    time_slice : numpy.ma.MaskedArray
+        The intensity of the specified frequency channel over the course
+        of the scan. It will have shape (n_int,)
+    bad_indices : numpy.ndarray
+        A list of indices corresponding to the flagged subintegrations
+    sd_threshold : float
+    filename : float
+        the number of standard deviations above the median spectrum averaged 
+        total power to consider an integration to have RFI. Integrations exceeding
+        this criteria will be flagged for replacement with data containing less RFI.
+    annotate : bool
+        A flag telling the function whether to include additional lines indicating the 
+        average value and threshold boundaries in the generated figure
+    """
+    z = z_score(time_slice)
+    y = np.arange(len(time_slice)) + 0.5
+    fig = plt.figure(figsize=(4,8))
+    gs = fig.add_gridspec(1,1)
+    ax = gs.subplots()
+    ax.set_title(f"Z-score\nnumber flagged: {len(bad_indices)}\ntotal integrations: {len(time_slice)}")
+    ax.plot(z, y)
+    if annotate:
+        ax.vlines(0, np.min(y), np.max(y), color="black")
+        ax.vlines(0 + sd_threshold, np.min(y), np.max(y), color="orange")
+        ax.vlines(0 - sd_threshold, np.min(y), np.max(y), color="orange")
+    for index in bad_indices:
+        highlight_bad_integrations(ax, index)
+    plt.savefig(f"{filename}", bbox_inches="tight", transparent=False)
+    plt.close(fig)
+
+def debug_plot(time_slice, bad_indices, sd_threshold=1, filename="debug.png", annotate=False):
+    """
+    Generages a plot of the provided data, and highlights the data points that
+    exceed the provided threshold. The plot is then saved to the current working directory.
+    
+    
+    Arguments:
+    ----------------
+    ime_slice : numpy.ma.MaskedArray
+        The intensity of the specified frequency channel over the course
+        of the scan. It will have shape (n_int,)
+    bad_indices : numpy.ndarray
+        A list of indices corresponding to the flagged subintegrations
+    sd_threshold : float
+    filename : float
+        the number of standard deviations above the median spectrum averaged 
+        total power to consider an integration to have RFI. Integrations exceeding
+        this criteria will be flagged for replacement with data containing less RFI.
+    annotate : bool
+        A flag telling the function whether to include additional lines indicating the 
+        average value and threshold boundaries in the generated figure
+    """
+    median_power = np.ma.median(time_slice)
+    sd = np.ma.sqrt(np.ma.sum( (time_slice - median_power)**2 ) / len(time_slice))
+    y = np.arange(len(time_slice)) + 0.5
+    fig = plt.figure(figsize=(4,8))
+    gs = fig.add_gridspec(1,1)
+    ax = gs.subplots()
+    ax.set_title(f"number flagged: {len(bad_indices)}\ntotal integrations: {len(time_slice)}")
+    ax.plot(time_slice, y)
+    if annotate:
+        ax.vlines(median_power, np.min(y), np.max(y), color="black")
+        ax.vlines(median_power + sd_threshold*sd, np.min(y), np.max(y), color="orange")
+        ax.vlines(median_power - sd_threshold*sd, np.min(y), np.max(y), color="orange")
+    for index in bad_indices:
+        highlight_bad_integrations(ax, index)
+    plt.savefig(f"{filename}", bbox_inches="tight", transparent=False)
+    plt.close(fig)
+
+def log_flags(n_SD, n_flags, data_length):
+    """
+    creates a log file in the current working directory. This log
+    file is a csv that contains information about the provided parameters
+    and the resulting flags in the data
+    
+    Arguments:
+    ----------------
+    n_SD : float
+        the number of standard deviations above the median spectrum averaged 
+        total power to consider an integration to have RFI. Integrations exceeding
+        this criteria will be flagged for replacement with data containing less RFI.
+    n_flags : int
+        the number of subintegrations that have been flagged for cleaning
+    data_length : int
+        the total number of subintegrations in the data being cleaned
+
+    Returns:
+    ----------------
+    saved csv file containing information about the flagged data
+    """
+    if not os.path.exists("flag_log.csv"):
+        # create logger csv
+        with open("flag_log.csv", "w") as f:
+            f.write("timestamp,sd_threshold,n_flag,data_length,flag_fraction\n")
+    
+    # add the log entry
+    timestamp = datetime.now()
+    output_string = f"{timestamp},{n_SD},{n_flags},{data_length},{n_flags/data_length}\n"
+    with open("flag_log.csv", "a") as f:
+        f.write(output_string)
+    return 

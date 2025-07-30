@@ -195,7 +195,7 @@ def frequency_cut(freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     freq = freq[freq_mask]
     return freq, ts_no_spur
 
-def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1):
+def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1, debug=False):
     """
     Generates a waterfall plot of the given data. The data can be restricted in frequency 
     with the fmin_GHz, fmax_GHz parameters. There are also the option to specify the band 
@@ -229,6 +229,9 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     plot_type : str
         the ablity to specify whether to save the plot as a pdf or png. 
         The default is to save as a png
+    debug : bool
+        A flag to generate log csv and plots. These outputs will be saved to the 
+        current working directory
     """
     assert cal_type in calibration_options, "the available calibration options are %s"%calibration_options
     assert plot_type in ["png", "pdf"], "the plot_type options are: ['png', 'pdf']"
@@ -239,7 +242,8 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     calibration_kwargs = {"replace_RFI":replace_RFI, 
                           "n_SD":n_SD,
                           "band_allocation":band_allocation,
-                          "channels":channels}
+                          "channels":channels,
+                          "debug":debug}
 
     # ensure that the output directory structure exists
     check_dir(outdir)
@@ -402,7 +406,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         rfi_flag_filename = ""
 
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
-        print(f"plotting: scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
+        print(f"plotting: {os.path.basename(filename).replace('.raw.vegas', '')} scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
 
         freq, timeseries_grid = frequency_cut(freq, timeseries_grid, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz)
         extent = [freq[0], freq[-1], 0, len(timeseries_grid)]
