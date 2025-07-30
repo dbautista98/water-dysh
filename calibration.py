@@ -22,7 +22,7 @@ def raw_data(sdf, tpsb, i=0, **kwargs):
     Returns:
     ----------------
     freq : numpy.ndarray
-        the frequency axis of the given data
+        the frequency axis of the given data in units of GHz
     ts_no_spur : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan)
         and has units of counts
@@ -55,7 +55,7 @@ def median_subtract(sdf, tpsb, i=0, **kwargs):
     Returns:
     ----------------
     freq : numpy.ndarray
-        the frequency axis of the given data
+        the frequency axis of the given data in units of GHz
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
         This data grid has had the median spectrum subtracted from each integration
@@ -103,7 +103,7 @@ def get_spectrum_and_freq(sdf, i=0, calstate=True, scan=[1], ifnum=0, plnum=0, f
     Returns:
     ----------------
     freq : numpy.ndarray
-        the frequency axis of the given data
+        the frequency axis of the given data in units of GHz
     ts_no_spur_median_subtracted : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
         This data grid has had the median spectrum subtracted from each integration
@@ -138,7 +138,8 @@ def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allo
     Arguments:
     ----------------
     freq : numpy.ndarray
-        the frequency axis of the given data
+        the frequency axis of the given data. It must have the same units as 
+        the data contained in the band allocations dictionary
     cal_ts_grid : numpy.ma.MaskedArray
         The time series data of the scan block with noise diode on. It has shape (n_int, nchan). 
     nocal_ts_grid : numpy.ma.MaskedArray
@@ -360,7 +361,8 @@ def flag_RFI_channels(freq, timeseries_grid, sd_threshold, band_allocation="none
     Arguments:
     ----------------
     freq : numpy.ndarray
-        the frequency axis of the given data, in units of GHz
+        the frequency axis of the given data. It must have the same units as 
+        the data contained in the band allocations dictionary
     timeseries_grid : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
     sd_threshold : : float
@@ -426,7 +428,7 @@ def calibrate_Ta(sdf, tpsb, i=0, **kwargs):
     Returns:
     ----------------
     freq : numpy.ndarray
-        the frequency axis of the given data
+        the frequency axis of the given data, in units of GHz
     Ta : numpy.ma.MaskedArray
         The calibrated time series data of the scan block. It has shape (n_int, nchan)
         and has units of antenna temperature [Kelvin]
