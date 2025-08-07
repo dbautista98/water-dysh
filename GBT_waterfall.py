@@ -93,10 +93,10 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
             ax.vlines(sat_dl_nu_ghz1,ylim[0],ylim[1],ls='--',color='k',alpha=0.5)
 
         band_width = np.abs(sat_dl_nu_ghz1 - sat_dl_nu_ghz0)
-        text_x = sat_dl_nu_ghz0 + 0.1*band_width
+        text_x = (sat_dl_nu_ghz1 + sat_dl_nu_ghz0) / 2
 
         if (freq.min()) <= text_x <= freq.max()-0.5*band_width and show_label:
-            ax.text(text_x,ylim_chan_label,nc,fontsize=10)
+            ax.text(text_x,ylim_chan_label,nc,fontsize=10, ha="center")
 
     return
 
