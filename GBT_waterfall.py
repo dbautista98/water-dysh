@@ -250,7 +250,7 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     outdir = f"{outdir}/{session_ID}/"
     check_dir(outdir)
 
-    summary_df = sdf.summary()
+    summary_df = sdf.get_summary()
 
     # switch between uniform or granular plotting logic
     if_difference = np.diff(summary_df["# IF"].values)
@@ -272,7 +272,7 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
     all scans were performed with the same number of polarizatoins, IF windows, and feeds. 
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    summary_df = sdf.summary()
+    summary_df = sdf.get_summary()
     scans = summary_df["SCAN"].values
     scans.sort()
 
@@ -313,7 +313,7 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
     there are scans with differing numbers of polarizations or IF windows or feeds
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    summary_df = sdf.summary()
+    summary_df = sdf.get_summary()
     scans = summary_df["SCAN"].values
     scans.sort()
 
