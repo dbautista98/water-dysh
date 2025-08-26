@@ -319,7 +319,8 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
 
     # for each scan, pull the number of feeds, polarizations, and IF windows
     # there is no reason to assume that they will be the same for all scans in a session
-    for i, this_scan in enumerate(scans):
+    for this_scan in scans:
+        i=0
         fdnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# FEED"].iloc[0])
         for fdnum in fdnums:
             plnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# POL"].iloc[0])
@@ -328,7 +329,7 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                 for ifnum in ifnums:
                     tpsb = sdf.gettp(scan=[this_scan],ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
                     # calibrate the data here
-                    freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i, **kwargs)
+                    freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i=i, **kwargs)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
 
                     # pipe relevant metadata into kwarg dictionary
