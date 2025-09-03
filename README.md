@@ -16,7 +16,7 @@ This method exploits the high time variability of some RFI signals to allow us t
 
 In order to utilize this RFI flagging/removal, you must create a `band_allocations.py` file 
 
-    touch band_allocatoins.py
+    touch band_allocations.py
 
 and fill it with a dictionary containing the known RFI bands (in GHz) you would like to check. An example of the contents and dictionary format is below: 
 
