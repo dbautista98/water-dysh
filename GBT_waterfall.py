@@ -9,6 +9,7 @@ try:
     from band_allocations import band_allocation_ghz_dict
 except:
     band_allocation_ghz_dict = {"none":{}}
+import dysh
 import calibration
 import matplotlib.pyplot as plt
 from astropy.coordinates import EarthLocation,SkyCoord
@@ -146,7 +147,7 @@ def get_metadata(tpsb, i=0):
     coord2 = all_medadata[0]['CTYPE3']
 
     # ensure that the code can handle the coordinate system
-    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], "Congratulations you found a coordinate system that Dan didn't account for! Please tell him :)"
+    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], f"Congratulations you found a coordinate system ({coord1}, {coord2}) that Dan didn't account for! Please tell him :)"
 
     for subint_num in range(len(all_medadata)):
         this_subint_metadata = all_medadata[subint_num]
@@ -154,7 +155,7 @@ def get_metadata(tpsb, i=0):
         el_values.append(this_subint_metadata["CRVAL3"])
         timestamps.append(this_subint_metadata["DATE-OBS"])
 
-    # convert RA/DEC to AZ/EL 
+    # convert RA/DEC to AZ/EL  
     if coord1 == "RA" and coord2 == "DEC":
         GBT = EarthLocation.of_site('Green Bank Telescope')
         coords = SkyCoord(ra=np.array(az_values)*u.deg, dec=np.array(el_values)*u.deg, obstime=timestamps, frame="icrs", location=GBT)
@@ -250,6 +251,7 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     outdir = f"{outdir}/{session_ID}/"
     check_dir(outdir)
 
+    assert dysh.__version__ >= "0.7.4", f"Dysh version out of date. dysh.__version__ = {dysh.__version__}, should be 0.7.4 or higher"
     summary_df = sdf.get_summary()
 
     # switch between uniform or granular plotting logic
