@@ -288,6 +288,12 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
                     # calibrate the data here
                     freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i, **kwargs)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
+                    if len(timestamps) == 1:
+                        time_delta = 0
+                        dt = 0
+                    else:
+                        time_delta = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
+                        dt = np.round(time_delta.total_seconds(), 3)
 
                     # pipe relevant metadata into kwarg dictionary
                     kwargs["filename"]= sdf.filename
@@ -297,8 +303,8 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
                     kwargs["fdnum"] = tpsb[i].fdnum
                     kwargs["df_kHz"] = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
                     kwargs["rcvr"] = tpsb[i].meta[0]["FRONTEND"]
-                    kwargs["time_delta"] = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
-                    kwargs["dt"] = np.round(kwargs["time_delta"].total_seconds(), 3)
+                    kwargs["time_delta"] = time_delta
+                    kwargs["dt"] = dt
                     kwargs["az_values"] = az_values
                     kwargs["el_values"] = el_values
                     kwargs["timestamps"] = timestamps
@@ -331,6 +337,12 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                     # calibrate the data here
                     freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i=i, **kwargs)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
+                    if len(timestamps) == 1:
+                        time_delta = 0
+                        dt = 0
+                    else:
+                        time_delta = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
+                        dt = np.round(time_delta.total_seconds(), 3)
 
                     # pipe relevant metadata into kwarg dictionary
                     kwargs["filename"]= sdf.filename
@@ -340,8 +352,8 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                     kwargs["fdnum"] = tpsb[i].fdnum
                     kwargs["df_kHz"] = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
                     kwargs["rcvr"] = tpsb[i].meta[0]["FRONTEND"]
-                    kwargs["time_delta"] = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
-                    kwargs["dt"] = np.round(kwargs["time_delta"].total_seconds(), 3)
+                    kwargs["time_delta"] = time_delta
+                    kwargs["dt"] = dt
                     kwargs["az_values"] = az_values
                     kwargs["el_values"] = el_values
                     kwargs["timestamps"] = timestamps
