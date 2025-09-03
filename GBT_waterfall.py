@@ -9,6 +9,7 @@ try:
     from band_allocations import band_allocation_ghz_dict
 except:
     band_allocation_ghz_dict = {"none":{}}
+import dysh
 import calibration
 import matplotlib.pyplot as plt
 from astropy.coordinates import EarthLocation,SkyCoord
@@ -146,7 +147,7 @@ def get_metadata(tpsb, i=0):
     coord2 = all_medadata[0]['CTYPE3']
 
     # ensure that the code can handle the coordinate system
-    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], "Congratulations you found a coordinate system that Dan didn't account for! Please tell him :)"
+    assert coord1 in ["AZ", "RA"] and coord2 in ["EL", "DEC"], f"Congratulations you found a coordinate system ({coord1}, {coord2}) that Dan didn't account for! Please tell him :)"
 
     for subint_num in range(len(all_medadata)):
         this_subint_metadata = all_medadata[subint_num]
@@ -154,7 +155,7 @@ def get_metadata(tpsb, i=0):
         el_values.append(this_subint_metadata["CRVAL3"])
         timestamps.append(this_subint_metadata["DATE-OBS"])
 
-    # convert RA/DEC to AZ/EL 
+    # convert RA/DEC to AZ/EL  
     if coord1 == "RA" and coord2 == "DEC":
         GBT = EarthLocation.of_site('Green Bank Telescope')
         coords = SkyCoord(ra=np.array(az_values)*u.deg, dec=np.array(el_values)*u.deg, obstime=timestamps, frame="icrs", location=GBT)
@@ -250,7 +251,8 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     outdir = f"{outdir}/{session_ID}/"
     check_dir(outdir)
 
-    summary_df = sdf.summary()
+    assert dysh.__version__ >= "0.7.4", f"Dysh version out of date. dysh.__version__ = {dysh.__version__}, should be 0.7.4 or higher"
+    summary_df = sdf.get_summary()
 
     # switch between uniform or granular plotting logic
     if_difference = np.diff(summary_df["# IF"].values)
@@ -272,7 +274,7 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
     all scans were performed with the same number of polarizatoins, IF windows, and feeds. 
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    summary_df = sdf.summary()
+    summary_df = sdf.get_summary()
     scans = summary_df["SCAN"].values
     scans.sort()
 
@@ -288,6 +290,12 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
                     # calibrate the data here
                     freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i, **kwargs)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
+                    if len(timestamps) == 1:
+                        time_delta = 0
+                        dt = 0
+                    else:
+                        time_delta = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
+                        dt = np.round(time_delta.total_seconds(), 3)
 
                     # pipe relevant metadata into kwarg dictionary
                     kwargs["filename"]= sdf.filename
@@ -297,8 +305,8 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
                     kwargs["fdnum"] = tpsb[i].fdnum
                     kwargs["df_kHz"] = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
                     kwargs["rcvr"] = tpsb[i].meta[0]["FRONTEND"]
-                    kwargs["time_delta"] = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
-                    kwargs["dt"] = np.round(kwargs["time_delta"].total_seconds(), 3)
+                    kwargs["time_delta"] = time_delta
+                    kwargs["dt"] = dt
                     kwargs["az_values"] = az_values
                     kwargs["el_values"] = el_values
                     kwargs["timestamps"] = timestamps
@@ -313,7 +321,7 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
     there are scans with differing numbers of polarizations or IF windows or feeds
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    summary_df = sdf.summary()
+    summary_df = sdf.get_summary()
     scans = summary_df["SCAN"].values
     scans.sort()
 
@@ -331,6 +339,12 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                     # calibrate the data here
                     freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i=i, **kwargs)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
+                    if len(timestamps) == 1:
+                        time_delta = 0
+                        dt = 0
+                    else:
+                        time_delta = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
+                        dt = np.round(time_delta.total_seconds(), 3)
 
                     # pipe relevant metadata into kwarg dictionary
                     kwargs["filename"]= sdf.filename
@@ -340,8 +354,8 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
                     kwargs["fdnum"] = tpsb[i].fdnum
                     kwargs["df_kHz"] = np.round(np.abs(tpsb[i].meta[0]["CDELT1"])/1000, 3)
                     kwargs["rcvr"] = tpsb[i].meta[0]["FRONTEND"]
-                    kwargs["time_delta"] = datetime.strptime(timestamps[1], "%Y-%m-%dT%H:%M:%S.%f") - datetime.strptime(timestamps[0], "%Y-%m-%dT%H:%M:%S.%f")
-                    kwargs["dt"] = np.round(kwargs["time_delta"].total_seconds(), 3)
+                    kwargs["time_delta"] = time_delta
+                    kwargs["dt"] = dt
                     kwargs["az_values"] = az_values
                     kwargs["el_values"] = el_values
                     kwargs["timestamps"] = timestamps
