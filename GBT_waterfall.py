@@ -238,7 +238,7 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
     assert plot_type in ["png", "pdf"], "the plot_type options are: ['png', 'pdf']"
     assert scale in ["linear", "log"], "the scale options are: ['linear', 'log']"
     assert band_allocation in band_options, "the available band_allocation options are %s"%band_options
-    assert fmin_GHz < fmax_GHz, "warning: fmin is greater than fmax"
+    assert fmin_GHz < fmax_GHz, f"warning: fmin is greater than fmax: fmin:{fmin_GHz} fmax:{fmax_GHz}"
 
     calibration_kwargs = {"replace_RFI":replace_RFI, 
                           "n_SD":n_SD,
