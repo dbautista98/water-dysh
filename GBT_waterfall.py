@@ -81,6 +81,9 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
     ax.set_ylim(ylim)
     ylim_chan_label = ylim[1] + 0.01*(ylim[1] - ylim[0])
 
+    xlim = ax.get_xlim()
+    ax.set_xlim(xlim)
+
     for i,nc in enumerate(list(band_allocation_ghz_dict[band_allocation].keys())):
 
         sat_dl_nu_ghz0 = band_allocation_ghz_dict[band_allocation][nc][0]
@@ -96,7 +99,7 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
         band_width = np.abs(sat_dl_nu_ghz1 - sat_dl_nu_ghz0)
         text_x = (sat_dl_nu_ghz1 + sat_dl_nu_ghz0) / 2
 
-        if (freq.min()) <= text_x <= freq.max()-0.5*band_width and show_label:
+        if (freq.min()) <= text_x <= freq.max() and show_label:
             ax.text(text_x,ylim_chan_label,nc,fontsize=10, ha="center")
 
     return
