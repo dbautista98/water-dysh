@@ -287,6 +287,7 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
             for ifnum in ifnums:
                 tpsb = sdf.gettp(scan=scans,ifnum=ifnum,plnum=plnum,fdnum=fdnum)
                 for i in range(len(scans)):
+                    print(f"starting: {os.path.basename(sdf.filename).replace('.raw.vegas', '')} scan = {scans[i]} ifnum = {ifnum} plnum = {plnum} fdnum = {fdnum}")
                     # calibrate the data here
                     freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i, **kwargs)
                     az_values, el_values, timestamps = get_metadata(tpsb, i=i)
@@ -421,7 +422,6 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         rfi_flag_filename = ""
 
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
-        print(f"plotting: {os.path.basename(filename).replace('.raw.vegas', '')} scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
 
         freq, timeseries_grid = frequency_cut(freq, timeseries_grid, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz)
         extent = [freq[0], freq[-1], 0, len(timeseries_grid)]
@@ -502,3 +502,4 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         ax3.set_xlim(np.min(freq), np.max(freq))
         plt.savefig(f"{outdir}/{os.path.basename(filename)}_waterfall_ifnum_{ifn}_scan_{scan}_plnum_{pl}_fdnum_{fd}_caltype_{cal_type}_{rfi_flag_filename}metadata.{plot_type}", bbox_inches="tight", transparent=False)
         plt.close("all")
+        print(f"saved: {os.path.basename(filename).replace('.raw.vegas', '')} scan = {scan} ifnum = {ifn} plnum = {pl} fdnum = {fd}")
