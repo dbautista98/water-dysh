@@ -59,7 +59,7 @@ def which_calibration():
     for band in calibration_options:
         print("\t", band)
 
-def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
+def plot_band_allocations(ax, freq, band_allocation="none", show_label=True, shading=False):
     """
     Overlays the band allocations and adds a label at the top of the figure
 
@@ -75,7 +75,10 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
         show the available options 
     show_label : bool
         a flag controlling whether or not to include a text label at the 
-        top of the figure 
+        top of the figure. The default is true
+    shading : bool
+        a flag controlling whether or not to highlight the range of a band
+        allocation. The default is false
     """
     ylim = ax.get_ylim()
     ax.set_ylim(ylim)
@@ -101,6 +104,14 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True):
 
         if (freq.min()) <= text_x <= freq.max() and show_label:
             ax.text(text_x,ylim_chan_label,nc,fontsize=10, ha="center")
+
+        if (freq.min() <= sat_dl_nu_ghz0 or sat_dl_nu_ghz1 <= freq.max()) and shading:
+            shade_min = np.max([xlim[0], sat_dl_nu_ghz0])
+            shade_max = np.min([xlim[1], sat_dl_nu_ghz1])
+            
+            ax.axvspan(shade_min, 
+                       shade_max, 
+                       alpha=0.25)
 
     return
 
@@ -199,7 +210,7 @@ def frequency_cut(freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     freq = freq[freq_mask]
     return freq, ts_no_spur
 
-def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1, debug=False):
+def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1, debug=False, shading=False):
     """
     Generates a waterfall plot of the given data. The data can be restricted in frequency 
     with the fmin_GHz, fmax_GHz parameters. There are also the option to specify the band 
@@ -235,7 +246,10 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
         The default is to save as a png
     debug : bool
         A flag to generate log csv and plots. These outputs will be saved to the 
-        current working directory
+        current working directory. The default is false
+    shading : bool
+        a flag controlling whether or not to highlight the range of a band
+        allocation. The default is false
     """
     assert cal_type in calibration_options, "the available calibration options are %s"%calibration_options
     assert plot_type in ["png", "pdf"], "the plot_type options are: ['png', 'pdf']"
@@ -247,7 +261,8 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
                           "n_SD":n_SD,
                           "band_allocation":band_allocation,
                           "channels":channels,
-                          "debug":debug}
+                          "debug":debug, 
+                          "shading":shading}
 
     # ensure that the output directory structure exists
     check_dir(outdir)
@@ -418,6 +433,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     az_values = kwargs.get("az_values", -999*np.ones(len(timeseries_grid)))
     el_values = kwargs.get("el_values", -999*np.ones(len(timeseries_grid)))
     timestamps = kwargs.get("timestamps", len(timeseries_grid)*["-999"])
+    shading = kwargs.get("shading", False)
 
     if replace_RFI:
         rfi_flag_filename = f"RFI_flag_n-SD_{n_SD}_"
@@ -453,7 +469,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         ax1.set_yscale(scale)
         ax1.set_ylim(np.nanmin(flux) - 0.05 * (np.nanmax(flux) - np.nanmin(flux)), np.nanmax(flux) + 0.25*(np.nanmax(flux) - np.nanmin(flux)))
         ax1.set_ylabel(f"average power\n[{unit}]")
-        plot_band_allocations(ax1, freq, band_allocation=band_allocation)
+        plot_band_allocations(ax1, freq, band_allocation=band_allocation, shading=shading)
 
         #ax2
         ax2.set_visible(not ax2)
