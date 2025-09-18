@@ -350,9 +350,9 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
         i=0
         fdnums = list(set(summary_df[summary_df["SCAN"] == this_scan]["FDNUM"]))
         for fdnum in fdnums:
-            plnums = list(set(summary_df[summary_df["SCAN"] == this_scan]["PLNUM"]))
+            plnums = list(set(summary_df[(summary_df["SCAN"] == this_scan) & (summary_df["FDNUM"] == fdnum)]["PLNUM"]))
             for plnum in plnums:
-                ifnums = list(set(summary_df[summary_df["SCAN"] == this_scan]["IFNUM"]))
+                ifnums = list(set(summary_df[(summary_df["SCAN"] == this_scan) & (summary_df["FDNUM"] == fdnum) & (summary_df["PLNUM"] == plnum)]["IFNUM"]))
                 for ifnum in ifnums:
                     print(f"starting: {os.path.basename(sdf.filename).replace('.raw.vegas', '')} scan = {this_scan} ifnum = {ifnum} plnum = {plnum} fdnum = {fdnum}")
                     tpsb = sdf.gettp(scan=[this_scan],ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
