@@ -292,13 +292,13 @@ def uniform_waterfalls(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtract
     all scans were performed with the same number of polarizatoins, IF windows, and feeds. 
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    summary_df = sdf.get_summary()
-    scans = summary_df["SCAN"].values
+    summary_df = sdf.get_summary(verbose=True)
+    scans = list(set(summary_df["SCAN"]))
     scans.sort()
 
-    plnums = np.arange(summary_df["# POL"].values[0])
-    ifnums = np.arange(summary_df["# IF"].values[0])
-    fdnums = np.arange(summary_df["# FEED"].values[0])
+    plnums = list(set(summary_df["PLNUM"]))
+    ifnums = list(set(summary_df["IFNUM"]))
+    fdnums = list(set(summary_df["FDNUM"]))
 
     for fdnum in fdnums:
         for plnum in plnums:
@@ -340,20 +340,21 @@ def single_scan_waterfall(sdf, fmin_GHz=0, fmax_GHz=1e99, cal_type="median_subtr
     there are scans with differing numbers of polarizations or IF windows or feeds
     For a detailed description of the arguments, see the documentation for GBT_waterfalls
     """
-    summary_df = sdf.get_summary()
-    scans = summary_df["SCAN"].values
+    summary_df = sdf.get_summary(verbose=True)
+    scans = list(set(summary_df["SCAN"]))
     scans.sort()
 
     # for each scan, pull the number of feeds, polarizations, and IF windows
     # there is no reason to assume that they will be the same for all scans in a session
     for this_scan in scans:
         i=0
-        fdnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# FEED"].iloc[0])
+        fdnums = list(set(summary_df[summary_df["SCAN"] == this_scan]["FDNUM"]))
         for fdnum in fdnums:
-            plnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# POL"].iloc[0])
+            plnums = list(set(summary_df[summary_df["SCAN"] == this_scan]["PLNUM"]))
             for plnum in plnums:
-                ifnums = np.arange(summary_df[summary_df["SCAN"] == this_scan]["# IF"].iloc[0])
+                ifnums = list(set(summary_df[summary_df["SCAN"] == this_scan]["IFNUM"]))
                 for ifnum in ifnums:
+                    print(f"starting: {os.path.basename(sdf.filename).replace('.raw.vegas', '')} scan = {this_scan} ifnum = {ifnum} plnum = {plnum} fdnum = {fdnum}")
                     tpsb = sdf.gettp(scan=[this_scan],ifnum=ifnum,plnum=plnum,fdnum=fdnum) 
                     # calibrate the data here
                     freq, ts_no_spur, unit = calibration_type[cal_type](sdf, tpsb, i=i, **kwargs)
