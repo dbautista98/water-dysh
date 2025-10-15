@@ -194,7 +194,7 @@ def frequency_cut(freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     ----------------
     freq : numpy.ndarray
         the frequency axis of the given data
-    ts_no_spur_median_subtracted : numpy.ma.MaskedArray
+    ts_no_spur : numpy.ma.MaskedArray
         The time series data of the scan block. It has shape (n_int, nchan). 
     fmin_GHz : float
         minimum frequency that will be plotted. The default is 0 GHz. 
@@ -217,7 +217,54 @@ def frequency_cut(freq, ts_no_spur, fmin_GHz=0, fmax_GHz=1e99):
     freq = freq[freq_mask]
     return freq, ts_no_spur
 
-def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1, debug=False, shading=False):
+def elevation_cut(elevations, azimuths, timestamps, ts_no_spur, elev_min=0, elev_max=1e99):
+    """
+    Option to apply an elevation mask to the data. This function is used as an intermediate
+    helper function when plotting the data.
+
+    Arguments:
+    ----------------
+    az_values : list
+        A list containing the azimuth metadata for each integration of a scan
+    el_values : list
+        A list containing the elevation metadata for each integration of a scan
+    timestamps : list 
+        A list containing the timestamp metadata for each integration of a scan
+    ts_no_spur : numpy.ma.MaskedArray
+        The time series data of the scan block. It has shape (n_int, nchan). 
+    elev_min : float
+        minimum elevation in deegrees that will be plotted. The default is 0 degrees. 
+    elev_max : float
+        maximum elevation in deegrees that will be plotted. The default is 1e99 degrees. 
+
+    Returns:
+    ---------------- 
+    az_values : list
+        A masked list containing the azimuth metadata for each integration of a scan
+    el_values : list
+        A masked list containing the elevation metadata for each integration of a scan
+    timestamps : list 
+        A masked list containing the timestamp metadata for each integration of a scan
+    ts_no_spur_median_subtracted : numpy.ma.MaskedArray
+        The time series data of the scan block. It has shape (n_int, nchan). 
+        n_int is now the number of integrations that fall within the 
+        specified boundaries. 
+    """
+    ts_no_spur = np.ma.copy(ts_no_spur)
+    elevations = np.ma.copy(elevations)
+    azimuths = np.ma.copy(azimuths)
+    timestamps = np.ma.copy(timestamps) # this might raise an error
+    if np.all(elevations == 0) or np.all(elevations == -999) or (len(elevations) == 1):
+        return elevations, azimuths, timestamps, ts_no_spur
+    else:
+        elev_mask = np.where((elevations >= elev_min) & (elevations <= elev_max))
+        ts_no_spur = ts_no_spur[elev_mask, ::][0, ::, ::]
+        elevations = elevations[elev_mask]
+        azimuths = azimuths[elev_mask]
+        timestamps = timestamps[elev_mask]
+        return elevations, azimuths, timestamps, ts_no_spur
+
+def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, elev_min=0, elev_max=1e99, band_allocation="none", channels=[], cal_type="median_subtract", scale="linear", outdir="./", plot_type="png", replace_RFI=False, n_SD=1, debug=False, shading=False):
     """
     Generates a waterfall plot of the given data. The data can be restricted in frequency 
     with the fmin_GHz, fmax_GHz parameters. There are also the option to specify the band 
@@ -269,7 +316,9 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, band_allocation="n
                           "band_allocation":band_allocation,
                           "channels":channels,
                           "debug":debug, 
-                          "shading":shading}
+                          "shading":shading,
+                          "elev_min":elev_min, 
+                          "elev_max":elev_max}
 
     # ensure that the output directory structure exists
     check_dir(outdir)
@@ -442,6 +491,8 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     el_values = kwargs.get("el_values", -999*np.ones(len(timeseries_grid)))
     timestamps = kwargs.get("timestamps", len(timeseries_grid)*["-999"])
     shading = kwargs.get("shading", False)
+    elev_min = kwargs.get("elev_min", 0)
+    elev_max = kwargs.get("elev_max", 1e99)
 
     if replace_RFI:
         rfi_flag_filename = f"RFI_flag_n-SD_{n_SD}_"
@@ -451,6 +502,7 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
     if np.any( freq < fmax_GHz) and np.any( freq > fmin_GHz):
 
         freq, timeseries_grid = frequency_cut(freq, timeseries_grid, fmin_GHz=fmin_GHz, fmax_GHz=fmax_GHz)
+        el_values, az_values, timestamps, timeseries_grid = elevation_cut(el_values, az_values, timestamps, timeseries_grid, elev_min=elev_min, elev_max=elev_max)
         extent = [freq[0], freq[-1], 0, len(timeseries_grid)]
 
         flux = np.ma.mean(timeseries_grid, axis=0)
