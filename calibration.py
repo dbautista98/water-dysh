@@ -247,6 +247,8 @@ def replace_bad_integrations(freq, cal_ts_grid, nocal_ts_grid, n_SD=1, band_allo
         integrations. 
     """
     assert cal_ts_grid.shape == nocal_ts_grid.shape, f"cal and nocal data are of different shape: {cal_ts_grid.shape}, {nocal_ts_grid.shape}"
+    if nocal_ts_grid.shape[0] == 1:
+        return nocal_ts_grid
     cal_ts_grid = np.ma.copy(cal_ts_grid)
     nocal_ts_grid = np.ma.copy(nocal_ts_grid)
     noise_diode_timeseries_grid = cal_ts_grid - nocal_ts_grid
