@@ -281,10 +281,17 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, elev_min=0, elev_m
         minimum frequency that will be plotted. The default is 0 GHz. 
     fmax_GHz : float
         maximum frequency that will be plotted. The default is 1e99 GHz. 
+    elev_min : float
+        minimum elevation in deegrees that will be plotted. The default is 0 degrees. 
+    elev_max : float
+        maximum elevation in deegrees that will be plotted. The default is 1e99 degrees. 
     band_allocation : str
         the key to identify which set of band allocations to 
         overlay on the plot. Running which_band_allocation() will 
         show the available options 
+    channels : list of str
+        A list of channel names to loop over. These channel names coorrespond to a 
+        list containing a pair of [lower, upper] frequency bounds in units of GHz
     cal_type : str
         label to identify what operations were done to scale the data. 
         changing this label allows the user to change which calibration
