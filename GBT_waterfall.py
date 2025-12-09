@@ -305,6 +305,12 @@ def GBT_waterfall(sdf, session_ID, fmin_GHz=0, fmax_GHz=1e99, elev_min=0, elev_m
     plot_type : str
         the ablity to specify whether to save the plot as a pdf or png. 
         The default is to save as a png
+    replace_RFI : bool
+        A flag specifying whether to clean integrations with strong RFI 
+    n_SD : float
+        the number of standard deviations above the median spectrum averaged 
+        total power to consider an integration to have RFI. Integrations exceeding
+        this criteria will be flagged for replacement with data containing less RFI.
     debug : bool
         A flag to generate log csv and plots. These outputs will be saved to the 
         current working directory. The default is false
