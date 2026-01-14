@@ -100,22 +100,29 @@ def plot_band_allocations(ax, freq, band_allocation="none", show_label=True, sha
             ax.vlines(sat_dl_nu_ghz1,ylim[0],ylim[1],ls='--',color='k',alpha=0.5)
 
         if show_label:
-            if (xlim[0] >= sat_dl_nu_ghz0) and (xlim[1] < sat_dl_nu_ghz1):
-                text_x = (xlim[1] + xlim[0]) / 2
-                ax.text(text_x,ylim_chan_label,nc,fontsize=10, ha="center")
+            # dummy variable for starting value 
+            text_x = -1e99
 
-            elif xlim[0] <= ((sat_dl_nu_ghz1 + sat_dl_nu_ghz0) / 2) <= xlim[1]:
-                text_x = (sat_dl_nu_ghz1 + sat_dl_nu_ghz0) / 2
-                ax.text(text_x,ylim_chan_label,nc,fontsize=10, ha="center")
+            if (xlim[0] <= sat_dl_nu_ghz0 or sat_dl_nu_ghz1 <= xlim[1]):
+                region_min = np.max([xlim[0], sat_dl_nu_ghz0])
+                region_max = np.min([xlim[1], sat_dl_nu_ghz1])
+                text_x = np.mean([region_min, region_max])
 
+            elif (xlim[0] >= sat_dl_nu_ghz0) and (xlim[1] <= sat_dl_nu_ghz1):
+                region_min = xlim[0]
+                region_max = xlim[1]
+                text_x = np.mean([region_min, region_max])
+
+            if xlim[0] <= text_x <= xlim[1]:
+                ax.text(text_x,ylim_chan_label,nc,fontsize=10, ha="center")
 
         if shading:
-            if (freq.min() <= sat_dl_nu_ghz0 or sat_dl_nu_ghz1 <= freq.max()):
+            if (xlim[0] <= sat_dl_nu_ghz0 or sat_dl_nu_ghz1 <= xlim[1]):
                 shade_min = np.max([xlim[0], sat_dl_nu_ghz0])
                 shade_max = np.min([xlim[1], sat_dl_nu_ghz1])
                 ax.axvspan(shade_min, shade_max, alpha=0.25)
 
-            elif (xlim[0] >= sat_dl_nu_ghz0) and (xlim[1] < sat_dl_nu_ghz1):
+            elif (xlim[0] >= sat_dl_nu_ghz0) and (xlim[1] <= sat_dl_nu_ghz1):
                 shade_min = xlim[0]
                 shade_max = xlim[1]
                 ax.axvspan(shade_min, shade_max, alpha=0.25)
