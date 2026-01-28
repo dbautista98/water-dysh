@@ -531,7 +531,6 @@ def plot_waterfall(freq, timeseries_grid, fmin_GHz=0, fmax_GHz=1e99, cal_type="m
         data_sd = np.nanstd(timeseries_grid)
         data_mean = np.ma.median(timeseries_grid)
         vmax = data_mean + 2*data_sd
-        vmax = data_mean + 2*data_sd
         if unit == "K":
             vmin = -0.1
         else:
